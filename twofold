@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+#
+# Twofold, from the host. Needs Docker with Compose v2; nothing else.
+#
+#   ./twofold up                 build if needed, start in the background, print the sign-in link
+#   ./twofold url                print the interviewer sign-in link
+#   ./twofold login claude       sign Claude Code in (Claude Pro/Max/Team/Enterprise)
+#   ./twofold login codex        sign Codex in (ChatGPT plan)
+#   ./twofold status             is each assistant signed in?
+#   ./twofold logs               follow the server log
+#   ./twofold down               stop (sessions and sign-ins are kept)
+#   ./twofold update             rebuild with the latest Claude Code and Codex CLIs
+#   ./twofold shell              a shell as the sandbox user, for debugging
+#   ./twofold reset              stop and delete all sessions (sign-ins are kept)
+#
+# On Windows without bash, use the equivalent `docker compose` commands in the README.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+die() { printf 'twofold: %s\n' "$*" >&2; exit 1; }
+
+compose() {
+    command -v docker >/dev/null || die "Docker is not installed: https://docs.docker.com/get-docker/"
+    docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required (docker compose …)"
+    docker compose "$@"
+}
+
+running() { [[ -n "$(compose ps --status running -q twofold 2>/dev/null)" ]]; }
+
+wait_healthy() {
+    local attempt
+    for attempt in $(seq 1 60); do
+        if compose exec -T twofold curl -fsS http://127.0.0.1:7777/api/health >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+    done
+    die "the server did not come up; see ./twofold logs"
+}
+
+cmd_up() {
+    mkdir -p repos
+    compose up -d --build "$@"
+    wait_healthy
+    printf '\nTwofold is running.\n\nInterviewer sign-in:\n  %s\n\n' "$(compose exec -T twofold twofold url)"
+    compose run --rm -T --no-deps twofold status || true
+    printf '\nSign an assistant in with ./twofold login claude (or codex).\n'
+}
+
+cmd_url() {
+    running || die "not running; start it with ./twofold up"
+    compose exec -T twofold twofold url
+}
+
+cmd_login() {
+    [[ "${1:-}" == "claude" || "${1:-}" == "codex" ]] || die "usage: ./twofold login claude|codex"
+    compose run --rm --no-deps twofold login "$1"
+}
+
+cmd_update() {
+    compose build --pull --no-cache \
+        --build-arg "CLAUDE_CODE_VERSION=${CLAUDE_CODE_VERSION:-latest}" \
+        --build-arg "CODEX_VERSION=${CODEX_VERSION:-latest}"
+    if running; then compose up -d; fi
+}
+
+cmd_reset() {
+    printf 'This deletes every session and workspace. Sign-ins are kept. Continue? [y/N] '
+    local answer
+    read -r answer
+    [[ "$answer" == "y" || "$answer" == "Y" ]] || exit 0
+    compose down
+    docker volume rm "twofold_twofold-data" >/dev/null 2>&1 || true
+    printf 'Done.\n'
+}
+
+case "${1:-}" in
+    up)     shift; cmd_up "$@" ;;
+    url)    shift; cmd_url ;;
+    login)  shift; cmd_login "$@" ;;
+    status) shift; compose run --rm -T --no-deps twofold status ;;
+    logs)   shift; compose logs -f --tail=200 twofold ;;
+    down)   shift; compose down ;;
+    update) shift; cmd_update ;;
+    shell)  shift; compose run --rm --no-deps twofold shell ;;
+    reset)  shift; cmd_reset ;;
+    ""|-h|--help|help)
+        awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}"
+        ;;
+    *) die "unknown command '$1'; try ./twofold help" ;;
+esac

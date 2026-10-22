@@ -1,0 +1,54 @@
+# Twofold. Start it with `./twofold up` (or `docker compose up -d --build`).
+# Settings come from `.env` next to this file; see `.env.example`.
+name: twofold
+
+services:
+  twofold:
+    build:
+      context: .
+      args:
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
+        CODEX_VERSION: ${CODEX_VERSION:-latest}
+        EXTRA_APT_PACKAGES: ${EXTRA_APT_PACKAGES:-}
+    image: twofold:${TWOFOLD_TAG:-latest}
+    restart: unless-stopped
+
+    # Loopback only by default. Set TWOFOLD_BIND=0.0.0.0 to reach it from other
+    # machines — and read "Running a remote interview" in the README first.
+    ports:
+      - "${TWOFOLD_BIND:-127.0.0.1}:${TWOFOLD_PORT:-7777}:7777"
+
+    environment:
+      TWOFOLD_ADMIN_TOKEN: ${TWOFOLD_ADMIN_TOKEN:-}
+      TWOFOLD_PUBLIC_URL: ${TWOFOLD_PUBLIC_URL:-}
+      TWOFOLD_PUBLISHED_PORT: ${TWOFOLD_PORT:-7777}
+      TWOFOLD_ENABLE_MOCK: ${TWOFOLD_ENABLE_MOCK:-0}
+      TWOFOLD_AGENT_TIMEOUT_MINUTES: ${TWOFOLD_AGENT_TIMEOUT_MINUTES:-30}
+      TWOFOLD_PASSTHROUGH_ENV: ${TWOFOLD_PASSTHROUGH_ENV:-}
+      # Optional alternative to `./twofold login claude`: a token from
+      # `claude setup-token`, which bills your Claude subscription.
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+
+    volumes:
+      # Sessions (private) and workspaces.
+      - twofold-data:/data
+      # Agent sign-ins survive restarts and rebuilds.
+      - claude-home:/home/agent/.claude
+      - codex-home:/home/agent/.codex
+      # npm / uv / pip caches, so setup commands get faster after the first run.
+      - agent-cache:/home/agent/.cache
+      # Local repositories to interview on, read-only.
+      - ${TWOFOLD_REPOS:-./repos}:/repos:ro
+
+    # The server needs to start processes as the sandbox user and tidy up their
+    # files; nothing more.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID, KILL]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  twofold-data:
+  claude-home:
+  codex-home:
+  agent-cache:

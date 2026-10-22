@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+# Local data directory used by `pnpm dev` (sessions, workspaces, tokens).
+.twofold-data/
+# Files mounted into the container's /repos when using the local-repo source.
+repos/*
+!repos/.gitkeep

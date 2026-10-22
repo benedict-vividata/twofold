@@ -1,0 +1,5 @@
+{
+  "title": "Bookshelf: pagination and filtering",
+  "check": "npm test --silent",
+  "brief": "## Background\n\n**Bookshelf** is a small JSON API for a shared reading list (Node, no dependencies). The team's mobile app is about to start using it, and the `GET /books` endpoint currently returns every book in one response.\n\n## Your task\n\nMake `GET /books` usable by a client that shows the reading list a page at a time:\n\n1. **Pagination.** Support `page` and `pageSize` query parameters. Default to the first page of 20; never return more than 100 books at once.\n2. **Filtering.** Support `author` (case-insensitive, partial match) and `status` (`to-read`, `reading` or `finished`). Filters combine.\n3. Give the client what it needs to render page controls.\n4. Invalid parameters should produce a `400` in the API's existing error format.\n"
+}

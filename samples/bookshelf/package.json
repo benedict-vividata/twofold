@@ -1,0 +1,14 @@
+{
+  "name": "bookshelf",
+  "version": "1.4.0",
+  "private": true,
+  "description": "A small JSON API for a shared reading list.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test --test-reporter=spec"
+  }
+}

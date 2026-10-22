@@ -1,0 +1,529 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ------------------------------------------------------------------------- */
+/* Design tokens. Every colour in the app comes from here.                   */
+/* ------------------------------------------------------------------------- */
+
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f3f2ef;
+  --surface-3: #ebeae6;
+  --border: #e6e4df;
+  --border-strong: #d4d1ca;
+  --text: #1b1a18;
+  --muted: #66635c;
+  --faint: #9a968e;
+  --primary: #1b1a18;
+  --primary-text: #ffffff;
+  --ring: #7c5cd6;
+
+  --a: #0f8a7e;
+  --a-soft: #e3f3f1;
+  --b: #7c5cd6;
+  --b-soft: #efeafb;
+  --on-version: #ffffff;
+
+  --ok: #18794e;
+  --ok-soft: #e6f4ec;
+  --bad: #c4321f;
+  --bad-soft: #fbeae7;
+  --warn: #a35c00;
+  --warn-soft: #fbf0df;
+  --info: #2f5fc4;
+  --info-soft: #e8eefb;
+
+  --diff-add: rgba(16, 163, 104, 0.13);
+  --diff-add-strong: rgba(16, 163, 104, 0.3);
+  --diff-del: rgba(220, 60, 50, 0.11);
+  --diff-del-strong: rgba(220, 60, 50, 0.26);
+
+  --syn-keyword: #a3307a;
+  --syn-string: #1a7f37;
+  --syn-number: #b35900;
+  --syn-comment: #8c8a84;
+  --syn-type: #2b5fb8;
+  --syn-function: #6d42c6;
+  --syn-property: #0b6e6e;
+  --syn-punct: #66635c;
+
+  --shadow-sm: 0 1px 2px rgba(20, 18, 14, 0.05);
+  --shadow: 0 1px 3px rgba(20, 18, 14, 0.06), 0 8px 24px -12px rgba(20, 18, 14, 0.12);
+  --shadow-lg: 0 24px 64px -24px rgba(20, 18, 14, 0.35);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111110;
+    --surface: #191918;
+    --surface-2: #201f1e;
+    --surface-3: #2a2927;
+    --border: #2c2b28;
+    --border-strong: #3b3a37;
+    --text: #ecebe8;
+    --muted: #a6a39c;
+    --faint: #75726b;
+    --primary: #ecebe8;
+    --primary-text: #141413;
+    --ring: #a48cf0;
+
+    --a: #35b9a8;
+    --a-soft: rgba(53, 185, 168, 0.14);
+    --b: #a48cf0;
+    --b-soft: rgba(164, 140, 240, 0.15);
+    --on-version: #121211;
+
+    --ok: #4cc38a;
+    --ok-soft: rgba(76, 195, 138, 0.13);
+    --bad: #f07a6a;
+    --bad-soft: rgba(240, 122, 106, 0.13);
+    --warn: #e7a74a;
+    --warn-soft: rgba(231, 167, 74, 0.13);
+    --info: #7ea6f5;
+    --info-soft: rgba(126, 166, 245, 0.13);
+
+    --diff-add: rgba(46, 190, 120, 0.13);
+    --diff-add-strong: rgba(46, 190, 120, 0.3);
+    --diff-del: rgba(240, 90, 80, 0.12);
+    --diff-del-strong: rgba(240, 90, 80, 0.28);
+
+    --syn-keyword: #f08dc5;
+    --syn-string: #8fd49b;
+    --syn-number: #f2b36b;
+    --syn-comment: #7f7c75;
+    --syn-type: #87b4ff;
+    --syn-function: #c3a6ff;
+    --syn-property: #6fd3cf;
+    --syn-punct: #a6a39c;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 24px 64px -24px rgba(0, 0, 0, 0.8);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #111110;
+  --surface: #191918;
+  --surface-2: #201f1e;
+  --surface-3: #2a2927;
+  --border: #2c2b28;
+  --border-strong: #3b3a37;
+  --text: #ecebe8;
+  --muted: #a6a39c;
+  --faint: #75726b;
+  --primary: #ecebe8;
+  --primary-text: #141413;
+  --ring: #a48cf0;
+
+  --a: #35b9a8;
+  --a-soft: rgba(53, 185, 168, 0.14);
+  --b: #a48cf0;
+  --b-soft: rgba(164, 140, 240, 0.15);
+  --on-version: #121211;
+
+  --ok: #4cc38a;
+  --ok-soft: rgba(76, 195, 138, 0.13);
+  --bad: #f07a6a;
+  --bad-soft: rgba(240, 122, 106, 0.13);
+  --warn: #e7a74a;
+  --warn-soft: rgba(231, 167, 74, 0.13);
+  --info: #7ea6f5;
+  --info-soft: rgba(126, 166, 245, 0.13);
+
+  --diff-add: rgba(46, 190, 120, 0.13);
+  --diff-add-strong: rgba(46, 190, 120, 0.3);
+  --diff-del: rgba(240, 90, 80, 0.12);
+  --diff-del-strong: rgba(240, 90, 80, 0.28);
+
+  --syn-keyword: #f08dc5;
+  --syn-string: #8fd49b;
+  --syn-number: #f2b36b;
+  --syn-comment: #7f7c75;
+  --syn-type: #87b4ff;
+  --syn-function: #c3a6ff;
+  --syn-property: #6fd3cf;
+  --syn-punct: #a6a39c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 64px -24px rgba(0, 0, 0, 0.8);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-text);
+  --color-ring: var(--ring);
+  --color-a: var(--a);
+  --color-a-soft: var(--a-soft);
+  --color-b: var(--b);
+  --color-b-soft: var(--b-soft);
+  --color-on-version: var(--on-version);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --shadow-xs: var(--shadow-sm);
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Base                                                                      */
+/* ------------------------------------------------------------------------- */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ring) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Syntax highlighting: shared by CodeMirror and static code blocks.         */
+/* ------------------------------------------------------------------------- */
+
+.tok-keyword,
+.tok-bool,
+.tok-atom,
+.tok-modifier {
+  color: var(--syn-keyword);
+}
+.tok-string,
+.tok-string2,
+.tok-literal,
+.tok-url,
+.tok-inserted {
+  color: var(--syn-string);
+}
+.tok-number {
+  color: var(--syn-number);
+}
+.tok-comment,
+.tok-meta {
+  color: var(--syn-comment);
+  font-style: italic;
+}
+.tok-typeName,
+.tok-className,
+.tok-namespace,
+.tok-tagName {
+  color: var(--syn-type);
+}
+.tok-variableName.tok-definition,
+.tok-function,
+.tok-macroName,
+.tok-labelName {
+  color: var(--syn-function);
+}
+.tok-propertyName,
+.tok-attributeName {
+  color: var(--syn-property);
+}
+.tok-punctuation,
+.tok-operator {
+  color: var(--syn-punct);
+}
+.tok-heading,
+.tok-strong {
+  font-weight: 600;
+}
+.tok-emphasis {
+  font-style: italic;
+}
+.tok-deleted,
+.tok-invalid {
+  color: var(--bad);
+}
+
+/* ------------------------------------------------------------------------- */
+/* CodeMirror                                                                */
+/* ------------------------------------------------------------------------- */
+
+.cm-editor {
+  font-size: 12.5px;
+  background: var(--surface);
+  color: var(--text);
+}
+.cm-editor.cm-focused {
+  outline: none;
+}
+.cm-editor .cm-scroller {
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+/* Ligatures turn => into ⇒ and != into ≠: not what a reviewer should be reading. */
+.cm-editor,
+pre,
+code,
+kbd {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+}
+.cm-editor .cm-content {
+  caret-color: var(--text);
+  padding: 6px 0;
+}
+.cm-editor .cm-gutters {
+  background: var(--surface);
+  color: var(--faint);
+  border-right: 1px solid var(--border);
+}
+.cm-editor .cm-lineNumbers .cm-gutterElement {
+  padding: 0 10px 0 14px;
+  min-width: 44px;
+}
+.cm-editor .cm-activeLine,
+.cm-editor .cm-activeLineGutter {
+  background: transparent;
+}
+.cm-editor.cm-focused .cm-activeLine {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-selectionBackground {
+  background: color-mix(in srgb, var(--ring) 22%, transparent) !important;
+}
+.cm-editor .cm-cursor {
+  border-left-color: var(--text);
+}
+.cm-editor .cm-searchMatch {
+  background: var(--warn-soft);
+  outline: 1px solid color-mix(in srgb, var(--warn) 50%, transparent);
+}
+.cm-editor .cm-panels {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* The unified merge view: changed lines, inline changes and deleted chunks. */
+.cm-editor .cm-changedLine,
+.cm-editor .cm-insertedLine {
+  background: var(--diff-add) !important;
+}
+.cm-editor .cm-changedText,
+.cm-editor .cm-insertedLine .cm-changedText {
+  background: var(--diff-add-strong) !important;
+  text-decoration: none;
+}
+.cm-editor .cm-deletedChunk {
+  background: var(--diff-del) !important;
+  padding: 0 !important;
+}
+.cm-editor .cm-deletedChunk .cm-deletedText,
+.cm-editor .cm-deletedChunk del {
+  background: var(--diff-del-strong) !important;
+  text-decoration: none;
+}
+.cm-editor .cm-deletedLine {
+  background: transparent !important;
+}
+.cm-editor .cm-changeGutter {
+  width: 3px;
+  padding: 0 !important;
+}
+.cm-editor .cm-changedLineGutter {
+  background: var(--ok) !important;
+}
+.cm-editor .cm-deletedLineGutter {
+  background: var(--bad) !important;
+}
+.cm-editor.cm-added-file .cm-gutters {
+  box-shadow: inset -3px 0 0 var(--ok);
+}
+.cm-editor .cm-collapsedLines {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 4px 14px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.cm-editor .cm-collapsedLines:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+.cm-editor .cm-collapsedLines::before,
+.cm-editor .cm-collapsedLines::after {
+  content: none;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Markdown                                                                  */
+/* ------------------------------------------------------------------------- */
+
+.prose-tf {
+  color: var(--text);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.prose-tf > :first-child {
+  margin-top: 0;
+}
+.prose-tf > :last-child {
+  margin-bottom: 0;
+}
+.prose-tf p,
+.prose-tf ul,
+.prose-tf ol,
+.prose-tf pre,
+.prose-tf table,
+.prose-tf blockquote {
+  margin: 0.65em 0;
+}
+.prose-tf h1,
+.prose-tf h2,
+.prose-tf h3,
+.prose-tf h4 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 1.2em 0 0.45em;
+  line-height: 1.3;
+}
+.prose-tf h1 {
+  font-size: 1.35em;
+}
+.prose-tf h2 {
+  font-size: 1.12em;
+}
+.prose-tf h3,
+.prose-tf h4 {
+  font-size: 1em;
+}
+.prose-tf ul {
+  list-style: disc;
+  padding-left: 1.35em;
+}
+.prose-tf ol {
+  list-style: decimal;
+  padding-left: 1.45em;
+}
+.prose-tf li {
+  margin: 0.2em 0;
+}
+.prose-tf li::marker {
+  color: var(--faint);
+}
+.prose-tf a {
+  color: var(--info);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-tf strong {
+  font-weight: 600;
+}
+.prose-tf blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding-left: 0.9em;
+  color: var(--muted);
+}
+.prose-tf :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.08em 0.36em;
+}
+.prose-tf table {
+  border-collapse: collapse;
+  font-size: 0.93em;
+}
+.prose-tf th,
+.prose-tf td {
+  border: 1px solid var(--border);
+  padding: 0.35em 0.65em;
+  text-align: left;
+}
+.prose-tf th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.prose-tf hr {
+  border-color: var(--border);
+  margin: 1.2em 0;
+}
+
+@keyframes tf-orbit {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(var(--orbit, 6px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.tf-orbit-a {
+  animation: tf-orbit 1.6s ease-in-out infinite;
+  --orbit: 2.5px;
+}
+.tf-orbit-b {
+  animation: tf-orbit 1.6s ease-in-out infinite;
+  --orbit: -2.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-orbit-a,
+  .tf-orbit-b {
+    animation: none;
+  }
+}
