@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { serve } from "@hono/node-server";
+import { createServer } from "node:http";
+import { getRequestListener } from "@hono/node-server";
 import { Harnesses } from "./agents/index.js";
 import { loadConfig, type Config } from "./config.js";
 import { Git } from "./git.js";
@@ -10,6 +11,7 @@ import { logger } from "./logger.js";
 import { Runner } from "./process.js";
 import { Twofold } from "./service.js";
 import { SessionStore } from "./store.js";
+import { Terminals } from "./terminal.js";
 import { Workspaces } from "./workspace.js";
 
 /** The configured admin token, or one generated on first start and kept in the private directory. */
@@ -42,24 +44,33 @@ async function main(): Promise<void> {
     new Harnesses(config, runner),
   );
   const token = await adminToken(config);
+  const terminals = new Terminals(config, store, (id) => app.workspaces.paths(id).repo);
+  await terminals.init();
+  app.terminalAvailable = terminals.available;
 
-  const server = serve(
-    { fetch: createApp(app, token).fetch, hostname: config.host, port: config.port },
-    () => {
-      const base = config.publicUrl ?? `http://localhost:${String(config.port)}`;
-      logger.info(`twofold ${config.version} listening on ${config.host}:${String(config.port)}`);
-      logger.info(
-        `sandbox: ${config.sandbox === null ? "off (processes run as this user)" : `uid ${String(config.sandbox.uid)}`}`,
-      );
-      logger.info(`interviewer sign-in: ${base}/login#token=${token}`);
-    },
-  );
+  const listener = getRequestListener(createApp(app, token).fetch);
+  const server = createServer((request, response) => {
+    void listener(request, response);
+  });
+  server.on("upgrade", (request, socket, head) => {
+    terminals.handleUpgrade(request, socket, head);
+  });
+  server.listen(config.port, config.host, () => {
+    const base = config.publicUrl ?? `http://localhost:${String(config.port)}`;
+    logger.info(`twofold ${config.version} listening on ${config.host}:${String(config.port)}`);
+    logger.info(
+      `sandbox: ${config.sandbox === null ? "off (processes run as this user)" : `uid ${String(config.sandbox.uid)}`}`,
+    );
+    logger.info(`terminals: ${terminals.available ? "on" : "off (node-pty is unavailable)"}`);
+    logger.info(`interviewer sign-in: ${base}/login#token=${token}`);
+  });
 
   let stopping = false;
   const stop = (signal: string): void => {
     if (stopping) return;
     stopping = true;
     logger.info(`${signal} received; shutting down`);
+    terminals.shutdown();
     server.close();
     void app
       .shutdown()

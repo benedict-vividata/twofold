@@ -51,6 +51,7 @@ interface Draft {
   mix: PairMix;
   degradations: string[];
   requireNote: boolean;
+  allowTerminal: boolean;
 }
 
 const CATEGORY_LABELS: Record<DegradationCategory, string> = {
@@ -110,6 +111,7 @@ function draftFromConfig(config: SessionConfig): Draft {
     mix: config.mix,
     degradations: config.degradations,
     requireNote: config.requireNote,
+    allowTerminal: config.allowTerminal,
   };
 }
 
@@ -138,6 +140,7 @@ function freshDraft(environment: Environment): Draft {
     mix: DEFAULT_MIX,
     degradations: environment.degradations.map((entry) => entry.id),
     requireNote: true,
+    allowTerminal: true,
   };
 }
 
@@ -168,6 +171,7 @@ function toConfig(draft: Draft): SessionConfigInput {
     mix: draft.mix,
     degradations: draft.degradations,
     requireNote: draft.requireNote,
+    allowTerminal: draft.allowTerminal,
   };
 }
 
@@ -806,7 +810,18 @@ export function NewSessionPage(): React.JSX.Element {
           />
         </Section>
 
-        <Section title="Candidate experience" description="How decisions are recorded.">
+        <Section
+          title="Candidate experience"
+          description="What the candidate can use, and how decisions are recorded."
+        >
+          <Toggle
+            checked={draft.allowTerminal}
+            onChange={(value) => {
+              update({ allowTerminal: value });
+            }}
+            label="Give the candidate a terminal"
+            description="A shell on a private copy of their code, and on each version while a pair is pending, to run tests and try things. Nothing typed there is recorded."
+          />
           <Toggle
             checked={draft.requireNote}
             onChange={(value) => {

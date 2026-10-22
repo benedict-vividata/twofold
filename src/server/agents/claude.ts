@@ -1,4 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import type { HarnessStatus } from "../../shared/model.js";
 import { CommandNotFoundError, type Runner } from "../process.js";
@@ -158,6 +160,26 @@ export class ClaudeHarness implements Harness {
   }
 
   async run(turn: AgentTurn): Promise<AgentResult> {
+    // The instructions go in a file the agent can read, not on the command
+    // line, where every process in the container (the candidate's terminal
+    // included) could see them with `ps`.
+    await mkdir(turn.scratchDir, { recursive: true });
+    const instructionsFile = path.join(
+      turn.scratchDir,
+      `instructions-${randomBytes(8).toString("hex")}.md`,
+    );
+    await writeFile(instructionsFile, turn.instructions, { mode: 0o640 });
+    try {
+      return await this.runWithInstructions(turn, instructionsFile);
+    } finally {
+      await rm(instructionsFile, { force: true });
+    }
+  }
+
+  private async runWithInstructions(
+    turn: AgentTurn,
+    instructionsFile: string,
+  ): Promise<AgentResult> {
     const args = [
       "-p",
       "--output-format",
@@ -165,8 +187,8 @@ export class ClaudeHarness implements Harness {
       "--verbose",
       "--strict-mcp-config",
       "--dangerously-skip-permissions",
-      "--append-system-prompt",
-      turn.instructions,
+      "--append-system-prompt-file",
+      instructionsFile,
     ];
     if (turn.model !== "") args.push("--model", turn.model);
     if (turn.effort !== "") args.push("--effort", turn.effort);

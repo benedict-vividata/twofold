@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { z } from "zod";
 import type { HarnessStatus } from "../../shared/model.js";
 import { activity } from "./activity.js";
 import { AgentError, type AgentResult, type AgentTurn, type Harness } from "./types.js";
@@ -89,7 +88,7 @@ export class MockHarness implements Harness {
         };
       }
       case "degrade": {
-        const allowed = degradationIds(turn.outputSchema);
+        const allowed = degradationIds(turn.instructions);
         const chosen = allowed[0] ?? "duplicated-logic";
         const current = await readFile(file, "utf8").catch(() => referenceSource(request, "slice"));
         await mkdir(path.dirname(file), { recursive: true });
@@ -169,13 +168,11 @@ function slugify(text: string): string {
   return slug === "" ? "change" : slug;
 }
 
-const SchemaWithEnum = z.object({
-  properties: z.object({ degradation: z.object({ enum: z.array(z.string()) }) }),
-});
-
-function degradationIds(schema: unknown): string[] {
-  const parsed = SchemaWithEnum.safeParse(schema);
-  return parsed.success ? parsed.data.properties.degradation.enum : [];
+/** The flaw menu, read from the instructions' numbered list: "1. `id` — …". */
+function degradationIds(instructions: string): string[] {
+  return [...instructions.matchAll(/^\d+\. `([a-z-]+)`/gm)].flatMap((match) =>
+    match[1] === undefined ? [] : [match[1]],
+  );
 }
 
 function referenceSource(request: string, flavour: "slice" | "loop"): string {

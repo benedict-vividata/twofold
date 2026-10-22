@@ -46,6 +46,8 @@ const MAX_CACHED_DIFFS = 200;
  */
 export class Twofold {
   readonly rounds: RoundEngine;
+  /** Set at start-up once the terminal backend has loaded. */
+  terminalAvailable = false;
   readonly chat: ChatEngine;
   private readonly diffCache = new Map<string, VariantFiles>();
   private readonly provisioning = new Map<

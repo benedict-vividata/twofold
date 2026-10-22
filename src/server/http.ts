@@ -88,7 +88,6 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self' data:",
-  "connect-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'none'",
   "form-action 'self'",
@@ -108,7 +107,10 @@ export function createApp(app: Twofold, adminToken: string): Hono {
   );
   http.use("*", async (c, next) => {
     await next();
-    c.header("Content-Security-Policy", CSP);
+    // WebSockets (the terminal) back to this host; 'self' doesn't cover ws: everywhere.
+    const host = c.req.header("host") ?? "";
+    const sockets = /^[\w.:[\]-]+$/.test(host) ? ` ws://${host} wss://${host}` : "";
+    c.header("Content-Security-Policy", `${CSP}; connect-src 'self'${sockets}`);
   });
   http.use("/api/*", async (c, next) => {
     await next();
@@ -259,7 +261,7 @@ export function createApp(app: Twofold, adminToken: string): Hono {
 
   const candidate = (c: Context): Session => app.sessionByToken(c.req.param("token") ?? "");
 
-  http.get("/api/c/:token", (c) => c.json(toCandidateSession(candidate(c))));
+  http.get("/api/c/:token", (c) => c.json(toCandidateSession(candidate(c), app.terminalAvailable)));
 
   http.get("/api/c/:token/events", (c) => {
     const session = candidate(c);
@@ -267,7 +269,7 @@ export function createApp(app: Twofold, adminToken: string): Hono {
       const send = async (current: Session): Promise<void> => {
         await stream.writeSSE({
           event: "session",
-          data: JSON.stringify(toCandidateSession(current)),
+          data: JSON.stringify(toCandidateSession(current, app.terminalAvailable)),
         });
       };
       await send(session);

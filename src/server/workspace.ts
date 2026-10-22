@@ -52,7 +52,8 @@ export class Workspaces {
 
   /** A directory the sandbox user owns. */
   private async makeDir(dir: string): Promise<void> {
-    await mkdir(dir, { recursive: true, mode: 0o2775 });
+    // Not world-readable: the candidate's terminal user must not see inside.
+    await mkdir(dir, { recursive: true, mode: 0o2770 });
     const sandbox = this.config.sandbox;
     if (sandbox !== null) await chown(dir, sandbox.uid, sandbox.gid);
   }

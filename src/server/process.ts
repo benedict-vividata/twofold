@@ -74,6 +74,7 @@ export class Runner {
     private readonly sandbox: SandboxIdentity | null,
     private readonly passthrough: readonly string[],
     private readonly parentEnv: NodeJS.ProcessEnv = process.env,
+    private readonly userName = "agent",
   ) {}
 
   get sandboxed(): boolean {
@@ -89,8 +90,8 @@ export class Runner {
     } else {
       env.PATH = this.parentEnv.PATH ?? "/usr/local/bin:/usr/bin:/bin";
       env.HOME = this.sandbox.home;
-      env.USER = "agent";
-      env.LOGNAME = "agent";
+      env.USER = this.userName;
+      env.LOGNAME = this.userName;
       env.LANG = "C.UTF-8";
       env.LC_ALL = "C.UTF-8";
       env.TERM = "dumb";

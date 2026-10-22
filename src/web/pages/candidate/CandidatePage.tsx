@@ -6,6 +6,7 @@ import {
   MessagesSquare,
   PartyPopper,
   Sparkles,
+  SquareTerminal,
   WifiOff,
   X,
 } from "lucide-react";
@@ -30,6 +31,7 @@ import {
 } from "../../components/ui";
 import { ChatPanel } from "./ChatPanel";
 import { CodeVersionBar, type CodeVersion } from "./CodeVersionBar";
+import { TerminalPanel } from "./TerminalPanel";
 
 type Tab = "chat" | "task" | "code" | "review";
 
@@ -184,15 +186,33 @@ function Finished({ session }: { session: CandidateSession }): React.JSX.Element
 function Workspace({
   session,
   api,
+  token,
 }: {
   session: CandidateSession;
   api: CandidateApi;
+  token: string;
 }): React.JSX.Element {
   const rounds = session.timeline.flatMap((item) => (item.type === "round" ? [item] : []));
   const latest = rounds.at(-1);
   const [tab, setTab] = useState<Tab>("task");
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(latest?.id ?? null);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+
+  // Ctrl+` shows and hides the terminal, as in most editors.
+  useEffect(() => {
+    if (!session.terminal) return undefined;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.ctrlKey && event.key === "`") {
+        event.preventDefault();
+        setTerminalOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [session.terminal]);
   const [finishing, setFinishing] = useState(false);
 
   // Bring a round forward when it starts and again when its versions are ready.
@@ -312,6 +332,23 @@ function Workspace({
                 )}
               </button>
             ))}
+            {session.terminal && (
+              <button
+                type="button"
+                title="Terminal (Ctrl+`)"
+                aria-pressed={terminalOpen}
+                onClick={() => {
+                  setTerminalOpen(!terminalOpen);
+                }}
+                className={cx(
+                  "ml-auto inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition",
+                  terminalOpen ? "bg-surface-2 text-ink" : "text-muted hover:text-ink",
+                )}
+              >
+                <SquareTerminal className="size-3.5" />
+                Terminal
+              </button>
+            )}
           </nav>
           <div className="min-h-0 flex-1 overflow-hidden">
             {tab === "task" && (
@@ -369,6 +406,15 @@ function Workspace({
                 />
               ))}
           </div>
+          {session.terminal && terminalOpen && (
+            <TerminalPanel
+              token={token}
+              pending={pending}
+              onHide={() => {
+                setTerminalOpen(false);
+              }}
+            />
+          )}
         </main>
       </div>
 
@@ -481,7 +527,7 @@ export function CandidatePage({ token }: { token: string }): React.JSX.Element {
       content = <Welcome session={session} api={api} />;
       break;
     case "active":
-      content = <Workspace session={session} api={api} />;
+      content = <Workspace session={session} api={api} token={token} />;
       break;
     case "finished":
       content = <Finished session={session} />;

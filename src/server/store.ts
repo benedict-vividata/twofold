@@ -17,6 +17,7 @@ const ID_PATTERN = /^[a-z0-9]{6,40}$/;
 export class SessionStore {
   private readonly sessions = new Map<string, Session>();
   private readonly listeners = new Map<string, Set<Listener>>();
+  private readonly globalListeners = new Set<(id: string, session: Session | null) => void>();
   private readonly persistTimers = new Map<string, NodeJS.Timeout>();
   private readonly notifyTimers = new Map<string, NodeJS.Timeout>();
   private writeChain: Promise<void> = Promise.resolve();
@@ -87,11 +88,30 @@ export class SessionStore {
 
   async delete(id: string): Promise<void> {
     this.sessions.delete(id);
+    this.emitGlobal(id, null);
     clearTimeout(this.persistTimers.get(id));
     this.persistTimers.delete(id);
     await this.enqueueWrite(async () => {
       await rm(this.file(id), { force: true });
     });
+  }
+
+  /** Every change to every session; `null` when a session is deleted. */
+  subscribeAll(listener: (id: string, session: Session | null) => void): () => void {
+    this.globalListeners.add(listener);
+    return () => {
+      this.globalListeners.delete(listener);
+    };
+  }
+
+  private emitGlobal(id: string, session: Session | null): void {
+    for (const listener of this.globalListeners) {
+      try {
+        listener(id, session);
+      } catch (error) {
+        logger.warn(`session listener failed: ${String(error)}`);
+      }
+    }
   }
 
   subscribe(id: string, listener: Listener): () => void {
@@ -124,6 +144,7 @@ export class SessionStore {
         this.notifyTimers.delete(id);
         const session = this.sessions.get(id);
         if (session === undefined) return;
+        this.emitGlobal(id, session);
         for (const listener of this.listeners.get(id) ?? []) {
           try {
             listener(session);

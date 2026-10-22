@@ -46,7 +46,7 @@ function candidateRound(round: Round): CandidateRound {
   };
 }
 
-export function toCandidateSession(session: Session): CandidateSession {
+export function toCandidateSession(session: Session, terminalAvailable = false): CandidateSession {
   return {
     id: session.id,
     title: session.config.title,
@@ -56,6 +56,7 @@ export function toCandidateSession(session: Session): CandidateSession {
     assistant: HARNESS_LABELS[session.config.harness.kind],
     requireNote: session.config.requireNote,
     hasCheck: session.config.commands.check.trim() !== "",
+    terminal: session.config.allowTerminal && terminalAvailable,
     chatBusy: session.chat.busy,
     startedAt: session.startedAt,
     finishedAt: session.finishedAt,

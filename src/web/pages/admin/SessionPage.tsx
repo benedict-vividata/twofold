@@ -546,6 +546,7 @@ function Sidebar({
               </button>
             </Row>
           )}
+          <Row label="Terminal">{config.allowTerminal ? "on" : "off"}</Row>
           <Row label="Justification">{config.requireNote ? "required" : "optional"}</Row>
         </div>
         {showBaseline && session.baseline !== null && (

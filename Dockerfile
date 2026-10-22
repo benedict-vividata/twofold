@@ -4,10 +4,13 @@
 # coding-agent CLIs. Multi-arch (amd64 and arm64), so it runs the same on Linux,
 # macOS (Docker Desktop / OrbStack / Colima) and Windows (Docker Desktop, WSL2).
 #
-# Two identities inside the container:
-#   root   runs the web server; owns /data/private (sessions and their hidden labels)
-#   agent  uid 10001; runs everything that touches a candidate's code: the agent
-#          CLIs, git, and the setup and check commands. It cannot read /data/private.
+# Three identities inside the container:
+#   root       runs the web server; owns /data/private (sessions and their hidden labels)
+#   agent      uid 10001; runs the agent CLIs, git, and the setup and check commands
+#              in /data/work. It cannot read /data/private.
+#   candidate  uid 10002; runs the candidate's terminal on a private copy of the
+#              code in /data/terminals. It can read neither /data/private nor
+#              /data/work, nor the agents' sign-ins.
 
 ARG NODE_VERSION=24
 
@@ -16,6 +19,9 @@ ARG NODE_VERSION=24
 # --------------------------------------------------------------------------- #
 FROM node:${NODE_VERSION}-bookworm-slim AS build
 WORKDIR /src
+# node-pty is a native module.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
@@ -36,6 +42,8 @@ ARG CODEX_VERSION=latest
 # Extra Debian packages for the repositories you interview on, e.g.
 #   EXTRA_APT_PACKAGES="golang-go default-jdk-headless cargo"
 ARG EXTRA_APT_PACKAGES=""
+# Keep in step with package.json.
+ARG NODE_PTY_VERSION=1.1.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8
@@ -56,12 +64,18 @@ RUN npm install -g \
 
 RUN groupadd --gid 10001 agent \
     && useradd --uid 10001 --gid 10001 --create-home --shell /bin/bash agent \
+    && groupadd --gid 10002 candidate \
+    && useradd --uid 10002 --gid 10002 --create-home --shell /bin/bash candidate \
+    && chmod 0700 /home/agent /home/candidate \
     # Workspaces are created by the server and used by the sandbox user.
     && git config --system --add safe.directory '*' \
     && git config --system init.defaultBranch main \
     && git config --system advice.detachedHead false
 
 WORKDIR /opt/twofold
+# The one runtime dependency the server bundle doesn't inline: the terminal's PTY.
+RUN npm install --no-save --no-package-lock "node-pty@${NODE_PTY_VERSION}" \
+    && npm cache clean --force
 COPY --from=build /src/dist ./dist
 COPY samples ./samples
 COPY --chmod=0755 docker/twofold.sh /usr/local/bin/twofold
@@ -75,6 +89,9 @@ ENV TWOFOLD_HOST=0.0.0.0 \
     TWOFOLD_SANDBOX_UID=10001 \
     TWOFOLD_SANDBOX_GID=10001 \
     TWOFOLD_SANDBOX_HOME=/home/agent \
+    TWOFOLD_TERMINAL_UID=10002 \
+    TWOFOLD_TERMINAL_GID=10002 \
+    TWOFOLD_TERMINAL_HOME=/home/candidate \
     CLAUDE_CONFIG_DIR=/home/agent/.claude \
     CODEX_HOME=/home/agent/.codex \
     DISABLE_AUTOUPDATER=1 \

@@ -175,42 +175,44 @@ export function stancePrompt(session: Session, request: string, side: "left" | "
 // Degraded alternative
 // ---------------------------------------------------------------------------
 
-export function degradeSchema(ids: readonly string[]): JsonSchema {
-  return {
-    type: "object",
-    properties: {
-      degradation: {
-        type: "string",
-        enum: [...ids],
-        description: "The id of the flaw you applied.",
-      },
-      summary: {
-        type: "string",
-        description: "One or two sentences for a reviewer: what the flaw is and where.",
-      },
-      locations: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            file: { type: "string" },
-            line: { type: ["integer", "null"] },
-            note: { type: "string" },
-          },
-          required: ["file", "line", "note"],
-          additionalProperties: false,
+/**
+ * The ids are deliberately not listed in the schema: Claude Code takes it on
+ * the command line, where any process in the container could read it. The
+ * menu lives in the instructions, and the server checks the answer.
+ */
+export const DEGRADE_SCHEMA: JsonSchema = {
+  type: "object",
+  properties: {
+    degradation: {
+      type: "string",
+      description: "The id of the flaw you applied, exactly as written in your instructions.",
+    },
+    summary: {
+      type: "string",
+      description: "One or two sentences for a reviewer: what the flaw is and where.",
+    },
+    locations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          file: { type: "string" },
+          line: { type: ["integer", "null"] },
+          note: { type: "string" },
         },
-      },
-      talking_points: {
-        type: "array",
-        items: { type: "string" },
-        description: "Two or three short questions a reviewer could ask about this flaw.",
+        required: ["file", "line", "note"],
+        additionalProperties: false,
       },
     },
-    required: ["degradation", "summary", "locations", "talking_points"],
-    additionalProperties: false,
-  };
-}
+    talking_points: {
+      type: "array",
+      items: { type: "string" },
+      description: "Two or three short questions a reviewer could ask about this flaw.",
+    },
+  },
+  required: ["degradation", "summary", "locations", "talking_points"],
+  additionalProperties: false,
+};
 
 export function degradeInstructions(session: Session, options: readonly Degradation[]): string {
   const menu = options

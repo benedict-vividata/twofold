@@ -16,13 +16,17 @@ log() { printf '[twofold] %s\n' "$*" >&2; }
 
 as_agent() { exec runuser -u agent -- "$@"; }
 
-# Named volumes come up owned by root; give each its owner back. The private
-# directory holds the hidden labels, so the sandbox user must not read it.
+# Named volumes come up owned by root; give each its owner back.
+#   /data/private    the hidden labels: root only
+#   /data/work       the agents' workspaces: not readable by the candidate's terminal
+#   /data/terminals  the candidate's own copies of the code
 prepare() {
     install -d -m 0700 -o root -g root /data/private
-    install -d -m 0755 -o agent -g agent /data/work
+    install -d -m 0750 -o agent -g agent /data/work
+    install -d -m 0700 -o candidate -g candidate /data/terminals
     install -d -m 0700 -o agent -g agent /home/agent/.claude /home/agent/.codex /home/agent/.cache
     chown agent:agent /home/agent/.claude /home/agent/.codex /home/agent/.cache
+    chmod 0700 /home/agent /home/candidate
 }
 
 admin_token() {

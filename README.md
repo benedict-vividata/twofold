@@ -134,6 +134,15 @@ workspace with:
   with each version's check result. Each file has an _open in context_ button
   that jumps to it in the Code tab, with that version selected, scrolled to the
   first change.
+- **Terminal** (Ctrl+`): a real shell in a panel along the bottom, to run the
+tests, start the app and poke at it. There's one on the merged code and,
+while a pair is pending, one on each version, each with the setup command
+already run. Each works on its own copy of the code: a fresh one-commit git
+repository, so `git diff` shows exactly what they changed there. Changes made
+  in a terminal aren't part of the submission. Shells survive a page reload.
+  When the merged code changes, the terminal offers to restart on the new code.
+  **Nothing typed in a terminal is recorded** or shown in the debrief. The
+  interviewer can switch the terminal off for a session.
 
 When they press **Generate** (or ⌘/Ctrl+Enter), the request and the
 conversation so far go to the assistant, and a few minutes later two versions
@@ -261,16 +270,21 @@ agents the candidate can talk to must not be able to tell them.
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Labels reaching the candidate's browser  | The candidate API is an allow-list projection of the session (`src/server/views.ts`), built field by field. A test asserts that no hidden field, flaw id, summary or commit hash appears in it.                                                                                            |
 | An agent reading the labels off disk     | Sessions live in `/data/private` (mode 0700, root). Agents, git, setup and check commands all run as the separate `agent` user and can't read it. Their environment is built from scratch, so the admin token never reaches them either.                                                   |
+| The candidate's terminal                 | Runs as a third user, `candidate`, on an exported copy of the code with no history. It can't read `/data/private`, the agents' workspaces in `/data/work` (where the version worktrees are), or the agents' sign-ins. Its environment is built from scratch.                               |
+| Instructions visible in the process list | The agents' instructions (which name the flaws to try) go in a file only the agent user can read, never on a command line that `ps` would show.                                                                                                                                            |
 | An agent finding a generation transcript | Generation runs keep no session files (`--no-session-persistence`, `--ephemeral`).                                                                                                                                                                                                         |
 | Order, timing or metadata giving it away | A coin flip decides A and B. Both commits share message, author and date. The candidate's progress messages are neutral, and failures don't say which side failed.                                                                                                                         |
 | Repository code attacking the server     | Git runs with hooks and fsmonitor disabled and as the sandbox user. Paths from the browser are validated and read through `git cat-file`, never the filesystem. The container drops all capabilities except the few needed to run processes as another user, and sets `no-new-privileges`. |
 
 What this **doesn't** stop: a candidate pasting both diffs into another AI tool,
 or into the assistant's chat. You'll see the latter in the transcript, and both
-make a good conversation. The agent in the chat can read the two version
-worktrees if it goes looking for them, but not the labels. As always, this
-keeps an honest exercise honest; it isn't designed to contain a determined
-adversary with a container escape.
+make a good conversation. The terminal has internet access, so a candidate
+could sign in to an AI tool of their own there. The agent in the chat can read
+the two version worktrees if it goes looking for them, but not the labels. The
+process list in the container is visible to every user, so a candidate who
+watched it closely during generation could see git commands and commit hashes
+go by. As always, this keeps an honest exercise honest; it isn't designed to
+contain a determined adversary with a container escape.
 
 ---
 
@@ -327,6 +341,7 @@ src/
 │   ├── git.ts         hardened git plumbing
 │   ├── process.ts     process runner: sandbox user, clean env, process-group kill
 │   ├── store.ts       sessions in memory, mirrored to one JSON file each
+│   ├── terminal.ts    the candidate's shells: PTYs over WebSocket, private copies of the code
 │   ├── views.ts       the candidate's allow-list projection
 │   └── report.ts      the Markdown debrief
 └── web/               React + Tailwind + CodeMirror

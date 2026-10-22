@@ -18,12 +18,12 @@ import type { SessionStore } from "../store.js";
 import { ASSISTANT_IDENTITY, type Slot, type Workspaces } from "../workspace.js";
 import { DEGRADATIONS, TRADEOFFS, type Degradation, type Tradeoff } from "./catalogue.js";
 import {
+  DEGRADE_SCHEMA,
   REFERENCE_SCHEMA,
   REPAIR_SCHEMA,
   STANCE_SCHEMA,
   degradeInstructions,
   degradePrompt,
-  degradeSchema,
   referenceInstructions,
   referencePrompt,
   repairInstructions,
@@ -424,7 +424,7 @@ export class RoundEngine {
         cwd: dir,
         instructions: degradeInstructions(session, options),
         prompt: degradePrompt(session, ctx.request, diff),
-        schema: degradeSchema(options.map((entry) => entry.id)),
+        schema: DEGRADE_SCHEMA,
       });
       const snap = await this.snapshot(ctx, dir);
       if (snap.tree === fromTree) continue;

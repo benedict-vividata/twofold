@@ -75,6 +75,8 @@ export const SessionConfig = z.object({
   mix: PairMix,
   degradations: z.array(z.string().min(1)).min(1),
   requireNote: z.boolean().default(true),
+  /** Give the candidate a shell on the code (and on each pending version). */
+  allowTerminal: z.boolean().default(true),
 });
 export type SessionConfig = z.infer<typeof SessionConfig>;
 export type SessionConfigInput = z.input<typeof SessionConfig>;
@@ -313,6 +315,8 @@ export const CandidateSession = z.object({
   assistant: z.string(),
   requireNote: z.boolean(),
   hasCheck: z.boolean(),
+  /** Whether the candidate can open a terminal in this session. */
+  terminal: z.boolean(),
   chatBusy: z.boolean(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
@@ -372,6 +376,38 @@ export const FileContent = z.object({
   changes: z.array(LineChange).nullable(),
 });
 export type FileContent = z.infer<typeof FileContent>;
+
+// ---------------------------------------------------------------------------
+// Terminal
+// ---------------------------------------------------------------------------
+
+/** What a terminal runs on: the merged code, or one of the versions awaiting a decision. */
+export const TerminalTarget = z.enum(["merged", "a", "b"]);
+export type TerminalTarget = z.infer<typeof TerminalTarget>;
+
+/** Messages from the browser to a terminal. */
+export const TerminalClientMessage = z.discriminatedUnion("t", [
+  z.object({ t: z.literal("i"), d: z.string().max(65_536) }),
+  z.object({
+    t: z.literal("r"),
+    c: z.number().int().min(2).max(1000),
+    r: z.number().int().min(2).max(500),
+  }),
+  z.object({ t: z.literal("restart") }),
+]);
+export type TerminalClientMessage = z.infer<typeof TerminalClientMessage>;
+
+/** Messages from a terminal to the browser. */
+export const TerminalServerMessage = z.discriminatedUnion("t", [
+  z.object({ t: z.literal("o"), d: z.string() }),
+  z.object({
+    t: z.literal("s"),
+    state: z.enum(["preparing", "ready", "stale", "closed", "error"]),
+    message: z.string(),
+  }),
+  z.object({ t: z.literal("x"), code: z.number().int().nullable() }),
+]);
+export type TerminalServerMessage = z.infer<typeof TerminalServerMessage>;
 
 // ---------------------------------------------------------------------------
 // Requests

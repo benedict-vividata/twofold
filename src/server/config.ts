@@ -27,6 +27,12 @@ export interface Config {
    * container uses it so an agent cannot read the private directory.
    */
   sandbox: SandboxIdentity | null;
+  /**
+   * The candidate's terminal runs as this user: one that can read neither the
+   * private directory nor the agents' workspaces.
+   */
+  terminalUser: SandboxIdentity | null;
+  terminalsDir: string;
   /** Environment variable names passed through to sandboxed processes. */
   passthroughEnv: string[];
   enableMock: boolean;
@@ -90,6 +96,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         }
       : null;
 
+  const terminalUid = nonEmpty(env.TWOFOLD_TERMINAL_UID);
+  const terminalGid = nonEmpty(env.TWOFOLD_TERMINAL_GID);
+  const terminalUser: SandboxIdentity | null =
+    terminalUid !== null && terminalGid !== null
+      ? {
+          uid: intFromEnv(env, "TWOFOLD_TERMINAL_UID", 0),
+          gid: intFromEnv(env, "TWOFOLD_TERMINAL_GID", 0),
+          home: env.TWOFOLD_TERMINAL_HOME ?? "/home/candidate",
+        }
+      : null;
+
   const staticDir = path.join(projectRoot, "dist", "web");
   const extraEnv = (env.TWOFOLD_PASSTHROUGH_ENV ?? "")
     .split(",")
@@ -108,6 +125,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     staticDir: env.TWOFOLD_STATIC_DIR ?? staticDir,
     adminToken: nonEmpty(env.TWOFOLD_ADMIN_TOKEN),
     sandbox,
+    terminalUser,
+    terminalsDir: path.resolve(env.TWOFOLD_TERMINALS_DIR ?? path.join(dataDir, "terminals")),
     passthroughEnv: [...new Set([...DEFAULT_PASSTHROUGH, ...extraEnv])],
     enableMock: flagFromEnv(env, "TWOFOLD_ENABLE_MOCK"),
     mockDelayMs: intFromEnv(env, "TWOFOLD_MOCK_DELAY_MS", 600),
