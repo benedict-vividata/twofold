@@ -1,7 +1,14 @@
-import { ChevronRight, FileCode2, FileMinus2, FilePlus2, FileSymlink } from "lucide-react";
+import {
+  ChevronRight,
+  FileCode2,
+  FileMinus2,
+  FilePlus2,
+  FileSymlink,
+  ScanSearch,
+} from "lucide-react";
 import { useState } from "react";
 import type { FileChange } from "../../../shared/model";
-import { cx } from "../ui";
+import { IconButton, cx } from "../ui";
 import { CodeMirror } from "./CodeMirror";
 
 const STATUS_ICON = {
@@ -56,12 +63,14 @@ function FileCard({
   editable,
   draft,
   onDraft,
+  onOpenInContext,
 }: {
   file: FileChange;
   defaultOpen: boolean;
   editable: boolean;
   draft: string | undefined;
   onDraft?: (path: string, text: string) => void;
+  onOpenInContext?: (path: string) => void;
 }): React.JSX.Element {
   const [open, setOpen] = useState(defaultOpen);
   const slash = file.path.lastIndexOf("/");
@@ -71,35 +80,45 @@ function FileCard({
 
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-surface">
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(!open);
-        }}
-        className={cx(
-          "flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-surface-2",
-          open && "border-b border-line",
-        )}
-      >
-        <ChevronRight
-          className={cx("size-3.5 shrink-0 text-faint transition", open && "rotate-90")}
-        />
-        {STATUS_ICON[file.status]}
-        <span className="min-w-0 flex-1 truncate font-mono text-[12px]">
-          {file.oldPath !== null && <span className="text-faint">{file.oldPath} → </span>}
-          <span className="text-muted">{dir}</span>
-          <span className="font-medium text-ink">{name}</span>
-        </span>
-        {edited && (
-          <span className="rounded bg-warn-soft px-1.5 text-[11px] font-medium text-warn">
-            edited
+      <div className={cx("group flex items-center", open && "border-b border-line")}>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(!open);
+          }}
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left transition hover:bg-surface-2"
+        >
+          <ChevronRight
+            className={cx("size-3.5 shrink-0 text-faint transition", open && "rotate-90")}
+          />
+          {STATUS_ICON[file.status]}
+          <span className="min-w-0 flex-1 truncate font-mono text-[12px]">
+            {file.oldPath !== null && <span className="text-faint">{file.oldPath} → </span>}
+            <span className="text-muted">{dir}</span>
+            <span className="font-medium text-ink">{name}</span>
           </span>
+          {edited && (
+            <span className="rounded bg-warn-soft px-1.5 text-[11px] font-medium text-warn">
+              edited
+            </span>
+          )}
+          <span className="shrink-0 font-mono text-[11.5px] tabular-nums">
+            <span className="text-ok">+{file.additions}</span>{" "}
+            <span className="text-bad">−{file.deletions}</span>
+          </span>
+        </button>
+        {onOpenInContext !== undefined && file.status !== "deleted" && (
+          <IconButton
+            label="Open in the code tab, in context"
+            className="mr-1 size-7 shrink-0"
+            onClick={() => {
+              onOpenInContext(file.path);
+            }}
+          >
+            <ScanSearch className="size-3.5" />
+          </IconButton>
         )}
-        <span className="shrink-0 font-mono text-[11.5px] tabular-nums">
-          <span className="text-ok">+{file.additions}</span>{" "}
-          <span className="text-bad">−{file.deletions}</span>
-        </span>
-      </button>
+      </div>
       {open && <FileBody file={file} editable={editable} draft={draft} onDraft={onDraft} />}
     </div>
   );
@@ -110,11 +129,13 @@ export function VariantDiff({
   editable = false,
   drafts,
   onDraft,
+  onOpenInContext,
 }: {
   files: readonly FileChange[];
   editable?: boolean;
   drafts?: ReadonlyMap<string, string>;
   onDraft?: (path: string, text: string) => void;
+  onOpenInContext?: (path: string) => void;
 }): React.JSX.Element {
   if (files.length === 0)
     return <p className="px-1 py-6 text-center text-[13px] text-muted">No files changed.</p>;
@@ -129,6 +150,7 @@ export function VariantDiff({
           editable={editable}
           draft={drafts?.get(file.path)}
           onDraft={onDraft}
+          onOpenInContext={onOpenInContext}
         />
       ))}
     </div>

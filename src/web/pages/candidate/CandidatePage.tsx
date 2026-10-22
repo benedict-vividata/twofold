@@ -29,6 +29,7 @@ import {
   cx,
 } from "../../components/ui";
 import { ChatPanel } from "./ChatPanel";
+import { CodeVersionBar, type CodeVersion } from "./CodeVersionBar";
 
 type Tab = "chat" | "task" | "code" | "review";
 
@@ -216,12 +217,27 @@ function Workspace({
     (position: Position) => api.variant(selected?.id ?? "", position),
     [api, selected?.id],
   );
-  const loadTree = useCallback((path: string) => api.tree(path), [api]);
-  const loadFile = useCallback((path: string) => api.file(path), [api]);
-  const revision = String(
-    rounds.filter((round) => round.decision !== null && round.decision.choice !== "reject").length,
-  );
-  const pending = rounds.some((round) => round.status === "ready");
+  const pendingRound = rounds.find((round) => round.status === "ready");
+  const pending = pendingRound !== undefined;
+
+  // While two versions await a decision, the code tab can show either one in
+  // context. The choice starts at "None" for every new pair.
+  const [codeVersion, setCodeVersion] = useState<CodeVersion>("none");
+  const [codeVersionFor, setCodeVersionFor] = useState(pendingRound?.id);
+  if (pendingRound?.id !== codeVersionFor) {
+    setCodeVersionFor(pendingRound?.id);
+    setCodeVersion("none");
+  }
+  const browsing: Position | null =
+    pendingRound === undefined || codeVersion === "none" ? null : codeVersion;
+  const [focus, setFocus] = useState<{ path: string; nonce: number } | null>(null);
+
+  const loadTree = useCallback((path: string) => api.tree(path, browsing), [api, browsing]);
+  const loadFile = useCallback((path: string) => api.file(path, browsing), [api, browsing]);
+  const merged = rounds.filter(
+    (round) => round.decision !== null && round.decision.choice !== "reject",
+  ).length;
+  const revision = `${String(merged)}:${pendingRound?.id ?? ""}:${browsing ?? "none"}`;
 
   const tabs: { value: Tab; label: string; icon: React.JSX.Element; mobileOnly?: boolean }[] = [
     {
@@ -307,7 +323,15 @@ function Workspace({
               </div>
             )}
             {tab === "code" && (
-              <CodeBrowser loadTree={loadTree} loadFile={loadFile} revision={revision} />
+              <CodeBrowser
+                loadTree={loadTree}
+                loadFile={loadFile}
+                revision={revision}
+                focus={focus}
+                toolbar={
+                  pending ? <CodeVersionBar value={codeVersion} onChange={setCodeVersion} /> : null
+                }
+              />
             )}
             {(tab === "review" || tab === "chat") &&
               (selected === undefined ? (
@@ -336,6 +360,11 @@ function Workspace({
                     void api.generate(selected.request).then(({ id }) => {
                       setSelectedRoundId(id);
                     });
+                  }}
+                  onOpenInContext={(position, path) => {
+                    setCodeVersion(position);
+                    setFocus({ path, nonce: Date.now() });
+                    setTab("code");
                   }}
                 />
               ))}

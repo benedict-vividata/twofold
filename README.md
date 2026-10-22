@@ -125,9 +125,15 @@ workspace with:
   thrown away before the next message.
 - **Task**: the brief.
 - **Code**: a browser for the code as it stands, including every change the
-  candidate has merged.
+  candidate has merged. While two versions await a decision, a **None / A / B**
+  switch shows the whole codebase with either version applied. Changed files
+  are marked in the tree, and VS Code–style gutter marks show which lines the
+  version added or changed (green) and where it removed lines (red), without
+  touching the code itself.
 - **Review**: the two versions of the latest change, side by side as diffs,
-  with each version's check result.
+  with each version's check result. Each file has an _open in context_ button
+  that jumps to it in the Code tab, with that version selected, scrolled to the
+  first change.
 
 When they press **Generate** (or ⌘/Ctrl+Enter), the request and the
 conversation so far go to the assistant, and a few minutes later two versions

@@ -62,8 +62,10 @@ const post = (body?: unknown): RequestInit => ({
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
 
-function query(path: string): string {
-  return new URLSearchParams({ path }).toString();
+function query(path: string, version?: Position | null): string {
+  const params = new URLSearchParams({ path });
+  if (version != null) params.set("version", version);
+  return params.toString();
 }
 
 type Created = z.infer<typeof Created>;
@@ -114,8 +116,9 @@ export interface CandidateApi {
   cancelRound: (roundId: string) => Promise<Ok>;
   decide: (roundId: string, decision: DecisionRequestInput) => Promise<Ok>;
   variant: (roundId: string, position: Position) => Promise<VariantFiles>;
-  tree: (path: string) => Promise<TreeListing>;
-  file: (path: string) => Promise<FileContent>;
+  /** `version` browses one of the versions awaiting a decision instead of the merged code. */
+  tree: (path: string, version?: Position | null) => Promise<TreeListing>;
+  file: (path: string, version?: Position | null) => Promise<FileContent>;
   eventsUrl: string;
 }
 
@@ -133,8 +136,8 @@ export function candidateApi(token: string): CandidateApi {
       call(Ok, `${base}/rounds/${roundId}/decision`, post(decision)),
     variant: (roundId: string, position: Position) =>
       call(VariantFiles, `${base}/rounds/${roundId}/variants/${position}`),
-    tree: (path: string) => call(TreeListing, `${base}/tree?${query(path)}`),
-    file: (path: string) => call(FileContent, `${base}/file?${query(path)}`),
+    tree: (path, version) => call(TreeListing, `${base}/tree?${query(path, version)}`),
+    file: (path, version) => call(FileContent, `${base}/file?${query(path, version)}`),
     eventsUrl: `${base}/events`,
   };
 }

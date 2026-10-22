@@ -385,6 +385,47 @@ kbd {
 .cm-editor.cm-added-file .cm-gutters {
   box-shadow: inset -3px 0 0 var(--ok);
 }
+/* Change marks when browsing a version in context. */
+.cm-editor .cm-change-gutter {
+  width: 5px;
+}
+.cm-editor .cm-change-gutter .cm-gutterElement {
+  position: relative;
+  padding: 0;
+}
+.cm-change-mark {
+  position: absolute;
+  inset: 0;
+}
+.cm-change-added::before,
+.cm-change-modified::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 1px;
+  width: 3px;
+  border-radius: 1px;
+  background: var(--ok);
+  opacity: 0.85;
+}
+/* A deletion sits between lines: a small notch on the boundary. */
+.cm-change-deleted-below::after,
+.cm-change-deleted-above::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  border-left: 5px solid var(--bad);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+.cm-change-deleted-below::after {
+  bottom: -4px;
+}
+.cm-change-deleted-above::after {
+  top: -4px;
+}
+
 .cm-editor .cm-collapsedLines {
   background: var(--surface-2);
   color: var(--muted);

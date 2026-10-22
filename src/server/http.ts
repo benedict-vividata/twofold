@@ -329,12 +329,21 @@ export function createApp(app: Twofold, adminToken: string): Hono {
     return c.json(await app.variantFiles(candidate(c), c.req.param("roundId"), position.data));
   });
 
+  /** `?version=a|b` browses one of the versions awaiting a decision. */
+  const version = (c: Context): Position | null => {
+    const raw = c.req.query("version");
+    if (raw === undefined || raw === "") return null;
+    const parsed = Position.safeParse(raw);
+    if (!parsed.success) throw new HttpError(400, "Unknown version");
+    return parsed.data;
+  };
+
   http.get("/api/c/:token/tree", async (c) =>
-    c.json(await app.tree(candidate(c), c.req.query("path") ?? "")),
+    c.json(await app.tree(candidate(c), c.req.query("path") ?? "", version(c))),
   );
 
   http.get("/api/c/:token/file", async (c) =>
-    c.json(await app.file(candidate(c), c.req.query("path") ?? "")),
+    c.json(await app.file(candidate(c), c.req.query("path") ?? "", version(c))),
   );
 
   http.all("/api/*", (c) => c.json({ error: "Not found" }, 404));

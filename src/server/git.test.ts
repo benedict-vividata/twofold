@@ -2,7 +2,14 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Git, isAllowedRemote, parseNameStatus, parseNumstat, safeRepoPath } from "./git.js";
+import {
+  Git,
+  isAllowedRemote,
+  parseLineChanges,
+  parseNameStatus,
+  parseNumstat,
+  safeRepoPath,
+} from "./git.js";
 import { Runner } from "./process.js";
 
 const identity = { name: "Test", email: "test@example.com", date: "2026-01-01T00:00:00Z" };
@@ -71,6 +78,29 @@ describe("diff parsing", () => {
   });
 });
 
+describe("parseLineChanges", () => {
+  it("reads added, modified and deleted hunks from a -U0 diff", () => {
+    const diff = [
+      "diff --git a/x b/x",
+      "@@ -0,0 +1,2 @@",
+      "+a",
+      "+b",
+      "@@ -10 +12 @@ fn()",
+      "-old",
+      "+new",
+      "@@ -20,3 +21,0 @@",
+      "-gone",
+      "@@ -30,2 +27,5 @@",
+    ].join("\n");
+    expect(parseLineChanges(diff)).toEqual([
+      { kind: "added", from: 1, to: 2 },
+      { kind: "modified", from: 12, to: 12 },
+      { kind: "deleted", from: 21, to: 21 },
+      { kind: "modified", from: 27, to: 31 },
+    ]);
+  });
+});
+
 describe("Git", () => {
   let dir: string;
   let git: Git;
@@ -117,6 +147,15 @@ describe("Git", () => {
         binary: false,
       },
       { path: "b.txt", oldPath: null, status: "added", additions: 1, deletions: 0, binary: false },
+    ]);
+  });
+
+  it("reports changed lines in the new file's numbering", async () => {
+    await writeFile(path.join(dir, "a.txt"), "zero\none\nTWO\n");
+    const snap = await git.snapshot(dir, base, "change", identity);
+    expect(await git.lineChanges(dir, base, snap.commit, ["a.txt"])).toEqual([
+      { kind: "added", from: 1, to: 1 },
+      { kind: "modified", from: 3, to: 3 },
     ]);
   });
 

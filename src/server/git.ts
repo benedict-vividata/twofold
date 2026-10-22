@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { rm } from "node:fs/promises";
 import path from "node:path";
-import type { FileChange, TreeEntry } from "../shared/model.js";
+import type { FileChange, LineChange, TreeEntry } from "../shared/model.js";
 import type { RunResult, Runner } from "./process.js";
 
 export class GitError extends Error {
@@ -279,11 +279,34 @@ export class Git {
         name: path.posix.basename(entryPath),
         path: entryPath,
         type: type === "tree" ? "dir" : "file",
+        change: null,
       });
     }
     return entries.sort((left, right) =>
       left.type === right.type ? left.name.localeCompare(right.name) : left.type === "dir" ? -1 : 1,
     );
+  }
+
+  /** Which lines of `paths` changed between two commits, in the newer commit's numbering. */
+  async lineChanges(
+    repo: string,
+    base: string,
+    commit: string,
+    paths: readonly string[],
+  ): Promise<LineChange[]> {
+    const output = await this.text(repo, [
+      "diff",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--no-color",
+      "-U0",
+      "-M",
+      base,
+      commit,
+      "--",
+      ...paths.map(safeRepoPath),
+    ]);
+    return parseLineChanges(output);
   }
 
   private async modeOf(repo: string, commit: string, filePath: string): Promise<string | null> {
@@ -396,4 +419,24 @@ export function parseNumstat(output: string): Map<string, Count> {
     }
   }
   return counts;
+}
+
+/** Reads the hunk headers of a zero-context diff (`-U0`). */
+export function parseLineChanges(diff: string): LineChange[] {
+  const changes: LineChange[] = [];
+  for (const match of diff.matchAll(/^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const removed = match[1] === undefined ? 1 : Number.parseInt(match[1], 10);
+    const start = Number.parseInt(match[2] ?? "0", 10);
+    const added = match[3] === undefined ? 1 : Number.parseInt(match[3], 10);
+    if (added === 0) {
+      changes.push({ kind: "deleted", from: start, to: start });
+    } else {
+      changes.push({
+        kind: removed === 0 ? "added" : "modified",
+        from: start,
+        to: start + added - 1,
+      });
+    }
+  }
+  return changes;
 }

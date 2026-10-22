@@ -488,32 +488,79 @@ export class Twofold {
     return session.headCommit;
   }
 
-  async tree(session: Session, dir: string): Promise<TreeListing> {
-    let safe: string;
-    try {
-      safe = safeRepoPath(dir);
-    } catch (_error) {
-      throw new HttpError(400, "Invalid path");
+  /** The commit to browse: the merged code, or one of the versions awaiting a decision. */
+  private browseTarget(
+    session: Session,
+    version: Position | null,
+  ): { commit: string; round: Round | null } {
+    if (version === null) return { commit: this.head(session), round: null };
+    const round = this.openRound(session);
+    if (round?.status !== "ready" || round.variants === null) {
+      throw new HttpError(409, "There are no versions waiting for a decision");
     }
-    const repo = this.workspaces.paths(session.id).repo;
-    return { entries: await this.workspaces.git.lsTree(repo, this.head(session), safe) };
+    return { commit: round.variants[version].commit, round };
   }
 
-  async file(session: Session, filePath: string): Promise<FileContent> {
-    let safe: string;
-    try {
-      safe = safeRepoPath(filePath);
-    } catch (_error) {
-      throw new HttpError(400, "Invalid path");
-    }
+  async tree(session: Session, dir: string, version: Position | null = null): Promise<TreeListing> {
+    const safe = validPath(dir);
+    const repo = this.workspaces.paths(session.id).repo;
+    const { commit, round } = this.browseTarget(session, version);
+    const entries = await this.workspaces.git.lsTree(repo, commit, safe);
+    if (round === null || version === null) return { entries };
+
+    const changed = (await this.variantFiles(session, round.id, version)).files;
+    return {
+      entries: entries.map((entry) => {
+        if (entry.type === "dir") {
+          const inside = changed.some((file) => file.path.startsWith(`${entry.path}/`));
+          return { ...entry, change: inside ? "contains" : null };
+        }
+        const file = changed.find((candidate) => candidate.path === entry.path);
+        if (file === undefined || file.status === "deleted") return entry;
+        return {
+          ...entry,
+          change:
+            file.status === "added" ? "added" : file.status === "renamed" ? "renamed" : "modified",
+        };
+      }),
+    };
+  }
+
+  async file(
+    session: Session,
+    filePath: string,
+    version: Position | null = null,
+  ): Promise<FileContent> {
+    const safe = validPath(filePath);
     if (safe === "") throw new HttpError(400, "Invalid path");
     const repo = this.workspaces.paths(session.id).repo;
+    const { commit, round } = this.browseTarget(session, version);
+    let blob;
     try {
-      const blob = await this.workspaces.git.blob(repo, this.head(session), safe);
-      return { path: safe, ...blob };
-    } catch (error) {
-      if (error instanceof HttpError) throw error;
+      blob = await this.workspaces.git.blob(repo, commit, safe);
+    } catch (_error) {
       throw new HttpError(404, "No such file");
     }
+    if (round === null || version === null) return { path: safe, ...blob, changes: null };
+
+    const changed = (await this.variantFiles(session, round.id, version)).files.find(
+      (file) => file.path === safe,
+    );
+    const changes =
+      changed === undefined
+        ? []
+        : await this.workspaces.git.lineChanges(repo, round.baseCommit, commit, [
+            ...(changed.oldPath === null ? [] : [changed.oldPath]),
+            safe,
+          ]);
+    return { path: safe, ...blob, changes };
+  }
+}
+
+function validPath(raw: string): string {
+  try {
+    return safeRepoPath(raw);
+  } catch (_error) {
+    throw new HttpError(400, "Invalid path");
   }
 }

@@ -83,6 +83,12 @@ describe("candidate API", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects an unknown version", async () => {
+    const session = await readySession(t.app);
+    const response = await http.request(`/api/c/${session.candidateToken}/tree?version=c`);
+    expect(response.status).toBe(400);
+  });
+
   it("serves files from the accepted code", async () => {
     const session = await readySession(t.app);
     const response = await http.request(`/api/c/${session.candidateToken}/file?path=src/app.ts`);

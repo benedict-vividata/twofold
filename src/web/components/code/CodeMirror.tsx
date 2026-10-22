@@ -2,6 +2,8 @@ import { unifiedMergeView } from "@codemirror/merge";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
+import type { LineChange } from "../../../shared/model";
+import { changeGutter, firstChangedLine } from "./changeGutter";
 import { baseExtensions } from "./editor";
 import { languageFor } from "./languages";
 
@@ -13,6 +15,8 @@ interface Props {
   original?: string | null;
   editable?: boolean;
   onChange?: (text: string) => void;
+  /** Marks in the gutter for lines that changed; the view opens at the first one. */
+  changes?: readonly LineChange[] | null;
   className?: string;
 }
 
@@ -26,6 +30,7 @@ export function CodeMirror({
   original,
   editable = false,
   onChange,
+  changes,
   className,
 }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null);
@@ -63,7 +68,14 @@ export function CodeMirror({
       extensions.push(EditorView.editorAttributes.of({ class: "cm-added-file" }));
     }
 
+    if (changes != null && changes.length > 0) extensions.push(changeGutter(changes));
+
     const view = new EditorView({ state: EditorState.create({ doc, extensions }), parent });
+    const first = changes == null ? null : firstChangedLine(changes);
+    if (first !== null && first <= view.state.doc.lines) {
+      const position = view.state.doc.line(first).from;
+      view.dispatch({ effects: EditorView.scrollIntoView(position, { y: "center" }) });
+    }
     let cancelled = false;
     void languageFor(path).then((support) => {
       if (!cancelled && support !== null) view.dispatch({ effects: language.reconfigure(support) });
@@ -72,7 +84,7 @@ export function CodeMirror({
       cancelled = true;
       view.destroy();
     };
-  }, [path, doc, original, editable]);
+  }, [path, doc, original, editable, changes]);
 
   return <div ref={host} className={className} />;
 }

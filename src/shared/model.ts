@@ -344,17 +344,32 @@ export const TreeEntry = z.object({
   name: z.string(),
   path: z.string(),
   type: z.enum(["dir", "file"]),
+  /** When browsing a version: how this entry differs from the merged code. */
+  change: z.enum(["added", "modified", "renamed", "contains"]).nullable(),
 });
 export type TreeEntry = z.infer<typeof TreeEntry>;
 
 export const TreeListing = z.object({ entries: z.array(TreeEntry) });
 export type TreeListing = z.infer<typeof TreeListing>;
 
+/**
+ * Lines a version changed, in the version's own line numbers. A deletion sits
+ * between lines: `from` is the line above it (0 when it is at the very top).
+ */
+export const LineChange = z.object({
+  kind: z.enum(["added", "modified", "deleted"]),
+  from: z.number().int(),
+  to: z.number().int(),
+});
+export type LineChange = z.infer<typeof LineChange>;
+
 export const FileContent = z.object({
   path: z.string(),
   content: z.string().nullable(),
   binary: z.boolean(),
   tooLarge: z.boolean(),
+  /** Present when browsing a version: what it changed in this file. */
+  changes: z.array(LineChange).nullable(),
 });
 export type FileContent = z.infer<typeof FileContent>;
 

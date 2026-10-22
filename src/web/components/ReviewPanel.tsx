@@ -52,6 +52,8 @@ interface Props {
   };
   onRetry?: () => void;
   onCancel?: () => void;
+  /** Shows a file of a pending version in the code tab, with the rest of the codebase around it. */
+  onOpenInContext?: (position: Position, path: string) => void;
 }
 
 type View = "split" | Position;
@@ -386,6 +388,7 @@ export function ReviewPanel({
   decide,
   onRetry,
   onCancel,
+  onOpenInContext,
 }: Props): React.JSX.Element {
   const wide = useWide();
   const [view, setView] = useState<View>("split");
@@ -524,6 +527,13 @@ export function ReviewPanel({
                 editable={editing?.position === position}
                 drafts={editing?.position === position ? editing.drafts : undefined}
                 onDraft={editing?.position === position ? onDraft : undefined}
+                onOpenInContext={
+                  onOpenInContext !== undefined && round.status === "ready" && editing === null
+                    ? (path) => {
+                        onOpenInContext(position, path);
+                      }
+                    : undefined
+                }
               />
             </div>
           ))}

@@ -246,6 +246,43 @@ describe("with the mock assistant", () => {
     await expect(stat(t.app.workspaces.paths(created.id).root)).rejects.toThrow();
   });
 
+  it("lets the candidate browse a pending version in context", async () => {
+    const session = await readySession(t.app, {
+      mix: { degraded: 1, tradeoff: 0, bothFlawed: 0, control: 0 },
+    });
+    t.app.generate(session.id, "Add pagination");
+    const ready = await waitFor(t.app, session.id, (s) => lastRound(s).status === "ready");
+
+    const root = await t.app.tree(ready, "", "b");
+    expect(root.entries.find((entry) => entry.name === "twofold-mock")?.change).toBe("contains");
+    expect(root.entries.find((entry) => entry.name === "src")?.change).toBeNull();
+    const inside = await t.app.tree(ready, "twofold-mock", "b");
+    const added = inside.entries[0];
+    expect(added?.change).toBe("added");
+
+    const file = await t.app.file(ready, added?.path ?? "", "b");
+    const lines = (file.content ?? "").split("\n").length - 1;
+    expect(file.changes).toEqual([{ kind: "added", from: 1, to: lines }]);
+    expect((await t.app.file(ready, "src/app.ts", "b")).changes).toEqual([]);
+
+    // The merged code doesn't have the file yet, and carries no change marks.
+    await expect(t.app.file(ready, added?.path ?? "", null)).rejects.toThrow(/No such file/);
+    expect((await t.app.file(ready, "src/app.ts", null)).changes).toBeNull();
+    expect(
+      (await t.app.tree(ready, "", null)).entries.every((entry) => entry.change === null),
+    ).toBe(true);
+
+    await t.app.decide(session.id, lastRound(ready).id, {
+      choice: "a",
+      tags: [],
+      note: "fine",
+      edits: [],
+    });
+    await expect(t.app.tree(t.app.session(session.id), "", "a")).rejects.toThrow(
+      /no versions waiting/,
+    );
+  });
+
   it("writes a report that names what each version was", async () => {
     const session = await readySession(t.app, {
       mix: { degraded: 1, tradeoff: 0, bothFlawed: 0, control: 0 },
