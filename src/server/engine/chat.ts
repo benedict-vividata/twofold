@@ -50,7 +50,9 @@ export class ChatEngine {
       draft.chat.busy = true;
       draft.chat.pendingNotices = [];
     });
-    void this.run(sessionId, answer.id, text, notices, earlier);
+    this.run(sessionId, answer.id, text, notices, earlier).catch((error: unknown) => {
+      logger.error(`chat turn in ${sessionId} crashed: ${String(error)}`);
+    });
   }
 
   cancel(sessionId: string): boolean {

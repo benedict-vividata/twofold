@@ -175,7 +175,9 @@ export class RoundEngine {
     this.store.update(sessionId, (draft) => {
       draft.timeline.push(round);
     });
-    void this.run(sessionId, round.id);
+    this.run(sessionId, round.id).catch((error: unknown) => {
+      logger.error(`round ${round.id} crashed: ${String(error)}`);
+    });
     return round;
   }
 

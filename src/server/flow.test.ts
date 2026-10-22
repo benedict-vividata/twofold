@@ -333,6 +333,26 @@ describe("with a scripted assistant", () => {
     expect(lastRound(done).error).toBeNull();
   });
 
+  it("survives deleting a session while a round and a chat turn are running", async () => {
+    const harness = new ScriptedHarness(
+      (turn) =>
+        new Promise((_resolve, reject) => {
+          turn.signal.addEventListener("abort", () => {
+            reject(new Error("aborted"));
+          });
+        }),
+    );
+    t = await createTestApp({ extra: [harness] });
+    const session = await readySession(t.app);
+    t.app.sendChat(session.id, "Hello?");
+    t.app.generate(session.id, "Add pagination");
+    await waitFor(t.app, session.id, (s) => lastRound(s).runs.length > 0);
+    await t.app.delete(session.id);
+    // Give the cancelled tasks time to finish their (now pointless) updates.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(t.app.store.get(session.id)).toBeUndefined();
+  });
+
   it("gives the assistant the conversation and the request when implementing", async () => {
     const harness = new ScriptedHarness(async (turn) => {
       if (turn.mode === "chat")

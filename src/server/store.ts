@@ -70,10 +70,14 @@ export class SessionStore {
     await this.persistNow(session.id);
   }
 
-  /** Applies a synchronous mutation and schedules persistence and notification. */
-  update(id: string, mutate: (session: Session) => void): Session {
+  /**
+   * Applies a synchronous mutation and schedules persistence and notification.
+   * A session deleted while work for it was still in flight is simply gone:
+   * late updates are dropped rather than thrown from background tasks.
+   */
+  update(id: string, mutate: (session: Session) => void): Session | undefined {
     const session = this.sessions.get(id);
-    if (session === undefined) throw new Error(`No session '${id}'`);
+    if (session === undefined) return undefined;
     mutate(session);
     session.updatedAt = new Date().toISOString();
     this.schedulePersist(id);
