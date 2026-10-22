@@ -220,9 +220,19 @@ body {
   background: color-mix(in srgb, var(--ring) 28%, transparent);
 }
 
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+/* In the base layer, so utilities can override it. Text fields draw their own
+   focus ring (or their container does), so they don't get a second outline. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [contenteditable]:focus-visible {
+    outline: none;
+  }
 }
 
 * {

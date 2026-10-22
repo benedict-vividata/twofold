@@ -241,7 +241,7 @@ export function ChatPanel({
               else void ask();
             }}
             placeholder="Ask a question, or describe a change to generate…"
-            className="block max-h-[220px] w-full resize-none bg-transparent focus-visible:outline-none px-3.5 pb-1 pt-3 text-[13.5px] leading-relaxed outline-none placeholder:text-faint"
+            className="block max-h-[220px] w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-[13.5px] leading-relaxed outline-none placeholder:text-faint"
           />
           <div className="flex items-center gap-2 px-2.5 pb-2.5 pt-1">
             <span className="hidden items-center gap-1 text-[11.5px] text-faint sm:flex">
