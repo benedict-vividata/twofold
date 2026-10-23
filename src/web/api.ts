@@ -7,6 +7,7 @@ import {
   CandidateSession,
   Environment,
   FileContent,
+  PreviewTargets,
   SessionSummary,
   TreeListing,
   VariantFiles,
@@ -117,6 +118,8 @@ export interface CandidateApi {
   decide: (roundId: string, decision: DecisionRequestInput) => Promise<Ok>;
   variant: (roundId: string, position: Position) => Promise<VariantFiles>;
   /** `version` browses one of the versions awaiting a decision instead of the merged code. */
+  /** Where to open the preview of each target's server. */
+  preview: () => Promise<PreviewTargets>;
   tree: (path: string, version?: Position | null) => Promise<TreeListing>;
   file: (path: string, version?: Position | null) => Promise<FileContent>;
   eventsUrl: string;
@@ -136,6 +139,7 @@ export function candidateApi(token: string): CandidateApi {
       call(Ok, `${base}/rounds/${roundId}/decision`, post(decision)),
     variant: (roundId: string, position: Position) =>
       call(VariantFiles, `${base}/rounds/${roundId}/variants/${position}`),
+    preview: () => call(PreviewTargets, `${base}/preview`),
     tree: (path, version) => call(TreeListing, `${base}/tree?${query(path, version)}`),
     file: (path, version) => call(FileContent, `${base}/file?${query(path, version)}`),
     eventsUrl: `${base}/events`,

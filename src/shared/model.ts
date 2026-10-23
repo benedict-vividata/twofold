@@ -317,6 +317,8 @@ export const CandidateSession = z.object({
   hasCheck: z.boolean(),
   /** Whether the candidate can open a terminal in this session. */
   terminal: z.boolean(),
+  /** Whether servers started in those terminals can be previewed in the browser. */
+  preview: z.boolean(),
   chatBusy: z.boolean(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
@@ -384,6 +386,25 @@ export type FileContent = z.infer<typeof FileContent>;
 /** What a terminal runs on: the merged code, or one of the versions awaiting a decision. */
 export const TerminalTarget = z.enum(["merged", "a", "b"]);
 export type TerminalTarget = z.infer<typeof TerminalTarget>;
+
+/**
+ * How to open one target's preview: load `${origin}/__twofold/${key}/${port}/`
+ * in a frame or tab. `port` is the `PORT` its terminal has set.
+ */
+export const PreviewTarget = z.object({
+  target: TerminalTarget,
+  origin: z.string(),
+  key: z.string(),
+  port: z.number().int(),
+});
+export type PreviewTarget = z.infer<typeof PreviewTarget>;
+
+export const PreviewTargets = z.object({
+  merged: PreviewTarget.nullable(),
+  a: PreviewTarget.nullable(),
+  b: PreviewTarget.nullable(),
+});
+export type PreviewTargets = z.infer<typeof PreviewTargets>;
 
 /** Messages from the browser to a terminal. */
 export const TerminalClientMessage = z.discriminatedUnion("t", [

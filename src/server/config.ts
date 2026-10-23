@@ -33,6 +33,13 @@ export interface Config {
    */
   terminalUser: SandboxIdentity | null;
   terminalsDir: string;
+  /**
+   * The ports the previews of the merged code, version A and version B listen
+   * on: one origin each, so apps can use absolute paths. Port 0 picks any.
+   */
+  previewPorts: [number, number, number];
+  /** Public base URLs for those, when they differ from this host on those ports (e.g. behind a tunnel). */
+  previewUrls: [string, string, string] | null;
   /** Environment variable names passed through to sandboxed processes. */
   passthroughEnv: string[];
   enableMock: boolean;
@@ -83,6 +90,24 @@ function nonEmpty(value: string | undefined): string | null {
   return trimmed === undefined || trimmed === "" ? null : trimmed;
 }
 
+function listFromEnv(env: NodeJS.ProcessEnv, name: string, fallback: string[]): string[] {
+  const raw = env[name]?.trim();
+  if (raw === undefined || raw === "") return fallback;
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part !== "");
+}
+
+/** Exactly three values: for the merged code, version A and version B. */
+function three<T>(values: T[], name: string): [T, T, T] {
+  const [merged, a, b] = values;
+  if (values.length !== 3 || merged === undefined || a === undefined || b === undefined) {
+    throw new Error(`${name} needs three comma-separated values (merged, A, B)`);
+  }
+  return [merged, a, b];
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const dataDir = path.resolve(env.TWOFOLD_DATA_DIR ?? path.join(projectRoot, ".twofold-data"));
   const uid = nonEmpty(env.TWOFOLD_SANDBOX_UID);
@@ -107,6 +132,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         }
       : null;
 
+  const previewPorts = listFromEnv(env, "TWOFOLD_PREVIEW_PORTS", ["7778", "7779", "7780"]).map(
+    (raw) => {
+      const value = Number.parseInt(raw, 10);
+      if (!Number.isInteger(value) || value < 0 || value > 65535) {
+        throw new Error(`TWOFOLD_PREVIEW_PORTS has an invalid port '${raw}'`);
+      }
+      return value;
+    },
+  );
+  const previewUrls = listFromEnv(env, "TWOFOLD_PREVIEW_URLS", []).map((url) =>
+    url.replace(/\/+$/, ""),
+  );
+
   const staticDir = path.join(projectRoot, "dist", "web");
   const extraEnv = (env.TWOFOLD_PASSTHROUGH_ENV ?? "")
     .split(",")
@@ -127,6 +165,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sandbox,
     terminalUser,
     terminalsDir: path.resolve(env.TWOFOLD_TERMINALS_DIR ?? path.join(dataDir, "terminals")),
+    previewPorts: three(previewPorts, "TWOFOLD_PREVIEW_PORTS"),
+    previewUrls: previewUrls.length === 0 ? null : three(previewUrls, "TWOFOLD_PREVIEW_URLS"),
     passthroughEnv: [...new Set([...DEFAULT_PASSTHROUGH, ...extraEnv])],
     enableMock: flagFromEnv(env, "TWOFOLD_ENABLE_MOCK"),
     mockDelayMs: intFromEnv(env, "TWOFOLD_MOCK_DELAY_MS", 600),

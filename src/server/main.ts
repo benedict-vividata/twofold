@@ -11,6 +11,8 @@ import { logger } from "./logger.js";
 import { Runner } from "./process.js";
 import { Twofold } from "./service.js";
 import { SessionStore } from "./store.js";
+import { AppPorts } from "./ports.js";
+import { Previews } from "./preview.js";
 import { Terminals } from "./terminal.js";
 import { Workspaces } from "./workspace.js";
 
@@ -44,11 +46,25 @@ async function main(): Promise<void> {
     new Harnesses(config, runner),
   );
   const token = await adminToken(config);
-  const terminals = new Terminals(config, store, (id) => app.workspaces.paths(id).repo);
+  const ports = new AppPorts();
+  const terminals = new Terminals(config, store, (id) => app.workspaces.paths(id).repo, ports);
   await terminals.init();
   app.terminalAvailable = terminals.available;
+  const previews = new Previews(config, store, ports);
+  if (terminals.available) {
+    try {
+      const bound = await previews.listen(config.host);
+      logger.info(
+        `previews: merged :${String(bound[0])}, A :${String(bound[1])}, B :${String(bound[2])}`,
+      );
+    } catch (error) {
+      logger.warn(
+        `previews are off: couldn't listen on ${config.previewPorts.join(", ")}: ${String(error)}`,
+      );
+    }
+  }
 
-  const listener = getRequestListener(createApp(app, token).fetch);
+  const listener = getRequestListener(createApp(app, token, previews).fetch);
   const server = createServer((request, response) => {
     void listener(request, response);
   });
@@ -71,6 +87,7 @@ async function main(): Promise<void> {
     stopping = true;
     logger.info(`${signal} received; shutting down`);
     terminals.shutdown();
+    previews.close();
     server.close();
     void app
       .shutdown()

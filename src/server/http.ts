@@ -14,9 +14,13 @@ import {
   LoginRequest,
   Position,
   type AdminSessionView,
+  type PreviewTarget,
+  type PreviewTargets,
   type Session,
+  type TerminalTarget,
 } from "../shared/model.js";
 import { logger } from "./logger.js";
+import type { Previews } from "./preview.js";
 import { buildReport } from "./report.js";
 import { HttpError, type Twofold } from "./service.js";
 import { toCandidateSession, toSummary } from "./views.js";
@@ -93,9 +97,22 @@ const CSP = [
   "form-action 'self'",
 ].join("; ");
 
-export function createApp(app: Twofold, adminToken: string): Hono {
+export function createApp(
+  app: Twofold,
+  adminToken: string,
+  previews: Previews | null = null,
+): Hono {
   const http = new Hono();
   const { config, store } = app;
+  const where = (
+    host: string | undefined,
+    forwardedProto: string | undefined,
+    url: string,
+  ): { host: string; protocol: string } => ({
+    host: host ?? "localhost",
+    protocol: forwardedProto === "https" || url.startsWith("https:") ? "https:" : "http:",
+  });
+  const previewAvailable = (): boolean => previews?.available ?? false;
 
   http.use(
     "*",
@@ -110,7 +127,34 @@ export function createApp(app: Twofold, adminToken: string): Hono {
     // WebSockets (the terminal) back to this host; 'self' doesn't cover ws: everywhere.
     const host = c.req.header("host") ?? "";
     const sockets = /^[\w.:[\]-]+$/.test(host) ? ` ws://${host} wss://${host}` : "";
-    c.header("Content-Security-Policy", `${CSP}; connect-src 'self'${sockets}`);
+    // Previews of the candidate's servers live on their own origins.
+    const frames =
+      previews === null || !/^[\w.:[\]-]+$/.test(host)
+        ? []
+        : previews.origins(where(host, c.req.header("x-forwarded-proto"), c.req.url));
+    c.header(
+      "Content-Security-Policy",
+      `${CSP}; connect-src 'self'${sockets}; frame-src 'self'${frames.map((origin) => ` ${origin}`).join("")}`,
+    );
+  });
+  // A state-changing request must come from a page on this origin. Previews run
+  // the candidate's own code on other ports of the same host, which browsers
+  // treat as the same site, so cookies alone don't keep them out.
+  http.use("/api/*", async (c, next) => {
+    const method = c.req.method;
+    const origin = c.req.header("origin");
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && origin !== undefined) {
+      let originHost: string | null;
+      try {
+        originHost = new URL(origin).host;
+      } catch (_error) {
+        originHost = null;
+      }
+      if (originHost !== c.req.header("host"))
+        return c.json({ error: "Cross-origin request refused" }, 403);
+    }
+    await next();
+    return;
   });
   http.use("/api/*", async (c, next) => {
     await next();
@@ -261,7 +305,9 @@ export function createApp(app: Twofold, adminToken: string): Hono {
 
   const candidate = (c: Context): Session => app.sessionByToken(c.req.param("token") ?? "");
 
-  http.get("/api/c/:token", (c) => c.json(toCandidateSession(candidate(c), app.terminalAvailable)));
+  http.get("/api/c/:token", (c) =>
+    c.json(toCandidateSession(candidate(c), app.terminalAvailable, previewAvailable())),
+  );
 
   http.get("/api/c/:token/events", (c) => {
     const session = candidate(c);
@@ -269,7 +315,9 @@ export function createApp(app: Twofold, adminToken: string): Hono {
       const send = async (current: Session): Promise<void> => {
         await stream.writeSSE({
           event: "session",
-          data: JSON.stringify(toCandidateSession(current, app.terminalAvailable)),
+          data: JSON.stringify(
+            toCandidateSession(current, app.terminalAvailable, previewAvailable()),
+          ),
         });
       };
       await send(session);
@@ -339,6 +387,20 @@ export function createApp(app: Twofold, adminToken: string): Hono {
     if (!parsed.success) throw new HttpError(400, "Unknown version");
     return parsed.data;
   };
+
+  http.get("/api/c/:token/preview", (c) => {
+    const session = candidate(c);
+    const info = (target: TerminalTarget): PreviewTarget | null =>
+      previews === null || !app.terminalAvailable
+        ? null
+        : previews.info(
+            session,
+            target,
+            where(c.req.header("host"), c.req.header("x-forwarded-proto"), c.req.url),
+          );
+    const body: PreviewTargets = { merged: info("merged"), a: info("a"), b: info("b") };
+    return c.json(body);
+  });
 
   http.get("/api/c/:token/tree", async (c) =>
     c.json(await app.tree(candidate(c), c.req.query("path") ?? "", version(c))),

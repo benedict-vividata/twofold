@@ -25,6 +25,7 @@ import {
 } from "../shared/model.js";
 import type { Config, SandboxIdentity } from "./config.js";
 import { logger } from "./logger.js";
+import type { AppPorts } from "./ports.js";
 import type { SessionStore } from "./store.js";
 
 type PtyModule = typeof import("node-pty");
@@ -103,6 +104,7 @@ export class Terminals {
     private readonly config: Config,
     private readonly store: SessionStore,
     private readonly repoOf: (sessionId: string) => string,
+    private readonly ports: AppPorts,
   ) {
     store.subscribeAll((id, session) => {
       this.sessionChanged(id, session);
@@ -337,7 +339,10 @@ export class Terminals {
         cols: live.size.cols,
         rows: live.size.rows,
         cwd: dirs.project,
-        env: this.environment(),
+        env: {
+          ...this.environment(),
+          PORT: String(this.ports.portFor(live.sessionId, live.target)),
+        },
         ...(this.config.terminalUser === null
           ? {}
           : { uid: this.config.terminalUser.uid, gid: this.config.terminalUser.gid }),
@@ -421,6 +426,7 @@ export class Terminals {
       }
     }
     if (session === null) {
+      this.ports.release(id);
       void rm(path.join(this.config.terminalsDir, id), { recursive: true, force: true });
     }
   }
@@ -512,6 +518,9 @@ export class Terminals {
       `PS1=${shellQuote(`${label} \\[\\e[2m\\]\\W\\[\\e[0m\\] \\$ `)}`,
       `cd ${shellQuote(dirs.project)}`,
       `printf '\\033[2m%s\\033[0m\\n' ${shellQuote(banner)}`,
+      `printf '\\033[2m%s\\033[0m\\n' ${shellQuote(
+        `PORT=${String(this.ports.portFor(session.id, target))} is set here: a server started on it shows up in the Preview tab.`,
+      )}`,
       setup === ""
         ? ""
         : [

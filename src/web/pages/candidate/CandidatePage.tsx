@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   CircleAlert,
   Code2,
   FileText,
@@ -31,9 +32,10 @@ import {
 } from "../../components/ui";
 import { ChatPanel } from "./ChatPanel";
 import { CodeVersionBar, type CodeVersion } from "./CodeVersionBar";
+import { PreviewPanel } from "./PreviewPanel";
 import { TerminalPanel } from "./TerminalPanel";
 
-type Tab = "chat" | "task" | "code" | "review";
+type Tab = "chat" | "task" | "code" | "review" | "preview";
 
 function Centered({ children }: { children: React.ReactNode }): React.JSX.Element {
   return <div className="flex min-h-full items-center justify-center p-6">{children}</div>;
@@ -198,6 +200,9 @@ function Workspace({
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(latest?.id ?? null);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
+  // The preview stays mounted once opened, so switching tabs doesn't reload the app.
+  const [previewVisited, setPreviewVisited] = useState(false);
+  if (tab === "preview" && !previewVisited) setPreviewVisited(true);
 
   // Ctrl+` shows and hides the terminal, as in most editors.
   useEffect(() => {
@@ -269,6 +274,9 @@ function Workspace({
     { value: "task", label: "Task", icon: <FileText className="size-3.5" /> },
     { value: "code", label: "Code", icon: <Code2 className="size-3.5" /> },
     { value: "review", label: "Review", icon: <GitCompareArrows className="size-3.5" /> },
+    ...(session.preview
+      ? [{ value: "preview" as const, label: "Preview", icon: <AppWindow className="size-3.5" /> }]
+      : []),
   ];
 
   return (
@@ -350,7 +358,7 @@ function Workspace({
               </button>
             )}
           </nav>
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className={cx("min-h-0 flex-1 overflow-hidden", tab === "preview" && "hidden")}>
             {tab === "task" && (
               <div className="h-full overflow-y-auto">
                 <div className="mx-auto max-w-3xl px-6 py-8">
@@ -406,6 +414,11 @@ function Workspace({
                 />
               ))}
           </div>
+          {session.preview && previewVisited && (
+            <div className={cx("min-h-0 flex-1", tab === "preview" ? "flex flex-col" : "hidden")}>
+              <PreviewPanel api={api} pendingRoundId={pendingRound?.id ?? null} />
+            </div>
+          )}
           {session.terminal && terminalOpen && (
             <TerminalPanel
               token={token}

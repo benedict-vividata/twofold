@@ -46,7 +46,11 @@ function candidateRound(round: Round): CandidateRound {
   };
 }
 
-export function toCandidateSession(session: Session, terminalAvailable = false): CandidateSession {
+export function toCandidateSession(
+  session: Session,
+  terminalAvailable = false,
+  previewAvailable = false,
+): CandidateSession {
   return {
     id: session.id,
     title: session.config.title,
@@ -57,6 +61,7 @@ export function toCandidateSession(session: Session, terminalAvailable = false):
     requireNote: session.config.requireNote,
     hasCheck: session.config.commands.check.trim() !== "",
     terminal: session.config.allowTerminal && terminalAvailable,
+    preview: session.config.allowTerminal && terminalAvailable && previewAvailable,
     chatBusy: session.chat.busy,
     startedAt: session.startedAt,
     finishedAt: session.finishedAt,

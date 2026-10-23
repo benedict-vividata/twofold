@@ -103,7 +103,7 @@ ENV TWOFOLD_HOST=0.0.0.0 \
     UV_CACHE_DIR=/home/agent/.cache/uv
 
 VOLUME ["/data"]
-EXPOSE 7777
+EXPOSE 7777 7778 7779 7780
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
     CMD curl -fsS http://127.0.0.1:7777/api/health || exit 1
 

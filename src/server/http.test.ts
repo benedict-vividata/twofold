@@ -52,6 +52,21 @@ describe("interviewer API", () => {
     expect(Array.isArray(sessions) && sessions.length).toBe(1);
   });
 
+  it("refuses state-changing requests from other origins", async () => {
+    const cookie = await signIn();
+    const response = await http.request("/api/admin/sessions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie,
+        host: "localhost:7777",
+        origin: "http://localhost:7778",
+      },
+      body: JSON.stringify(sampleConfig()),
+    });
+    expect(response.status).toBe(403);
+  });
+
   it("rejects an invalid configuration with a readable message", async () => {
     const cookie = await signIn();
     const response = await http.request("/api/admin/sessions", {

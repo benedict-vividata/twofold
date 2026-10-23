@@ -143,6 +143,13 @@ repository, so `git diff` shows exactly what they changed there. Changes made
   When the merged code changes, the terminal offers to restart on the new code.
   **Nothing typed in a terminal is recorded** or shown in the debrief. The
   interviewer can switch the terminal off for a session.
+- **Preview**: a browser on the servers they start in those terminals: one for
+  the merged code and, while a pair is pending, one for each version. Each
+  terminal has its own `PORT` set, so A and B can run side by side, and each
+  preview is served from its own origin (ports 7778–7780), so apps that use
+  absolute paths, client-side routing or WebSockets (dev-server reload) work
+  unchanged. An address bar picks the port and path; it can also open in a new
+  tab.
 
 When they press **Generate** (or ⌘/Ctrl+Enter), the request and the
 conversation so far go to the assistant, and a few minutes later two versions
@@ -255,6 +262,11 @@ By default Twofold listens on `127.0.0.1` only. For a remote candidate, either:
 - **Expose it**: set `TWOFOLD_BIND=0.0.0.0` and put it behind a reverse proxy
   that terminates TLS.
 
+Previews need their own three origins. Locally that's ports 7778–7780, which
+`compose.yaml` publishes. Behind a tunnel or proxy, give each its own public
+address (e.g. three tunnel hostnames pointing at 7778, 7779 and 7780) and list
+them in `TWOFOLD_PREVIEW_URLS`.
+
 The candidate link is the credential: 192 random bits, scoped to one session.
 The interviewer pages need the admin token, which is kept in an HttpOnly cookie
 after sign-in.
@@ -266,15 +278,16 @@ after sign-in.
 The candidate must not be able to find out which version is which, and the
 agents the candidate can talk to must not be able to tell them.
 
-| Concern                                  | Mechanism                                                                                                                                                                                                                                                                                  |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Labels reaching the candidate's browser  | The candidate API is an allow-list projection of the session (`src/server/views.ts`), built field by field. A test asserts that no hidden field, flaw id, summary or commit hash appears in it.                                                                                            |
-| An agent reading the labels off disk     | Sessions live in `/data/private` (mode 0700, root). Agents, git, setup and check commands all run as the separate `agent` user and can't read it. Their environment is built from scratch, so the admin token never reaches them either.                                                   |
-| The candidate's terminal                 | Runs as a third user, `candidate`, on an exported copy of the code with no history. It can't read `/data/private`, the agents' workspaces in `/data/work` (where the version worktrees are), or the agents' sign-ins. Its environment is built from scratch.                               |
-| Instructions visible in the process list | The agents' instructions (which name the flaws to try) go in a file only the agent user can read, never on a command line that `ps` would show.                                                                                                                                            |
-| An agent finding a generation transcript | Generation runs keep no session files (`--no-session-persistence`, `--ephemeral`).                                                                                                                                                                                                         |
-| Order, timing or metadata giving it away | A coin flip decides A and B. Both commits share message, author and date. The candidate's progress messages are neutral, and failures don't say which side failed.                                                                                                                         |
-| Repository code attacking the server     | Git runs with hooks and fsmonitor disabled and as the sandbox user. Paths from the browser are validated and read through `git cat-file`, never the filesystem. The container drops all capabilities except the few needed to run processes as another user, and sets `no-new-privileges`. |
+| Concern                                  | Mechanism                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Labels reaching the candidate's browser  | The candidate API is an allow-list projection of the session (`src/server/views.ts`), built field by field. A test asserts that no hidden field, flaw id, summary or commit hash appears in it.                                                                                                                   |
+| An agent reading the labels off disk     | Sessions live in `/data/private` (mode 0700, root). Agents, git, setup and check commands all run as the separate `agent` user and can't read it. Their environment is built from scratch, so the admin token never reaches them either.                                                                          |
+| The candidate's terminal                 | Runs as a third user, `candidate`, on an exported copy of the code with no history. It can't read `/data/private`, the agents' workspaces in `/data/work` (where the version worktrees are), or the agents' sign-ins. Its environment is built from scratch.                                                      |
+| Previews reaching Twofold                | Browsers send a host's cookies to every port on it, so the preview proxy strips every `twofold_*` cookie before a request reaches the candidate's server, and drops any it tries to set. It won't proxy to Twofold's own ports. The API refuses state-changing requests from any other origin, previews included. |
+| Instructions visible in the process list | The agents' instructions (which name the flaws to try) go in a file only the agent user can read, never on a command line that `ps` would show.                                                                                                                                                                   |
+| An agent finding a generation transcript | Generation runs keep no session files (`--no-session-persistence`, `--ephemeral`).                                                                                                                                                                                                                                |
+| Order, timing or metadata giving it away | A coin flip decides A and B. Both commits share message, author and date. The candidate's progress messages are neutral, and failures don't say which side failed.                                                                                                                                                |
+| Repository code attacking the server     | Git runs with hooks and fsmonitor disabled and as the sandbox user. Paths from the browser are validated and read through `git cat-file`, never the filesystem. The container drops all capabilities except the few needed to run processes as another user, and sets `no-new-privileges`.                        |
 
 What this **doesn't** stop: a candidate pasting both diffs into another AI tool,
 or into the assistant's chat. You'll see the latter in the transcript, and both
@@ -297,6 +310,7 @@ Set in `.env` (see `.env.example`):
 | `TWOFOLD_ADMIN_TOKEN`           | generated   | Interviewer sign-in token. Generated and stored on first start when empty                         |
 | `TWOFOLD_PORT`                  | `7777`      | Port on the host                                                                                  |
 | `TWOFOLD_BIND`                  | `127.0.0.1` | Host interface; `0.0.0.0` to expose it                                                            |
+| `TWOFOLD_PREVIEW_URLS`          | —           | Public URLs of the three previews (merged, A, B) when they aren't this host on ports 7778–7780    |
 | `TWOFOLD_PUBLIC_URL`            | —           | Base URL for candidate links; defaults to the address you opened the UI on                        |
 | `CLAUDE_CODE_OAUTH_TOKEN`       | —           | Alternative to `./twofold login claude` (from `claude setup-token`)                               |
 | `CLAUDE_CODE_VERSION`           | `latest`    | Claude Code CLI version baked into the image                                                      |
@@ -342,6 +356,7 @@ src/
 │   ├── process.ts     process runner: sandbox user, clean env, process-group kill
 │   ├── store.ts       sessions in memory, mirrored to one JSON file each
 │   ├── terminal.ts    the candidate's shells: PTYs over WebSocket, private copies of the code
+│   ├── preview.ts     a browser on the candidate's servers: one proxied origin per target
 │   ├── views.ts       the candidate's allow-list projection
 │   └── report.ts      the Markdown debrief
 └── web/               React + Tailwind + CodeMirror

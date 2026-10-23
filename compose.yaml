@@ -17,11 +17,16 @@ services:
     # machines — and read "Running a remote interview" in the README first.
     ports:
       - "${TWOFOLD_BIND:-127.0.0.1}:${TWOFOLD_PORT:-7777}:7777"
+      # Previews of the candidate's servers: merged code, version A, version B.
+      # Each needs its own origin; keep the host ports equal to these, or set
+      # TWOFOLD_PREVIEW_URLS.
+      - "${TWOFOLD_BIND:-127.0.0.1}:7778-7780:7778-7780"
 
     environment:
       TWOFOLD_ADMIN_TOKEN: ${TWOFOLD_ADMIN_TOKEN:-}
       TWOFOLD_PUBLIC_URL: ${TWOFOLD_PUBLIC_URL:-}
       TWOFOLD_PUBLISHED_PORT: ${TWOFOLD_PORT:-7777}
+      TWOFOLD_PREVIEW_URLS: ${TWOFOLD_PREVIEW_URLS:-}
       TWOFOLD_ENABLE_MOCK: ${TWOFOLD_ENABLE_MOCK:-0}
       TWOFOLD_AGENT_TIMEOUT_MINUTES: ${TWOFOLD_AGENT_TIMEOUT_MINUTES:-30}
       TWOFOLD_PASSTHROUGH_ENV: ${TWOFOLD_PASSTHROUGH_ENV:-}

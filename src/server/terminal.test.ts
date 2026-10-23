@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 import { TerminalServerMessage } from "../shared/model.js";
 import { createApp } from "./http.js";
+import { AppPorts } from "./ports.js";
 import { Terminals, projectName } from "./terminal.js";
 import {
   createTestApp,
@@ -20,7 +21,12 @@ let port: number;
 
 beforeEach(async () => {
   t = await createTestApp();
-  terminals = new Terminals(t.config, t.app.store, (id) => t.app.workspaces.paths(id).repo);
+  terminals = new Terminals(
+    t.config,
+    t.app.store,
+    (id) => t.app.workspaces.paths(id).repo,
+    new AppPorts(),
+  );
   await terminals.init();
   t.app.terminalAvailable = terminals.available;
   const listener = getRequestListener(createApp(t.app, "token").fetch);
