@@ -51,8 +51,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl git openssh-client tini procps less jq ripgrep \
         build-essential python3 python3-venv python3-pip python3-dev \
+        nano vim-tiny \
         ${EXTRA_APT_PACKAGES} \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    # vim-tiny only provides `vi` and `vim.tiny`; make `vim` work too.
+    && ln -s /usr/bin/vim.tiny /usr/local/bin/vim
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /uvx /usr/local/bin/
 

@@ -230,8 +230,8 @@ Any git repository works, including large open-source ones.
   it from the list.
 
 **Toolchains.** The image has Node 24 (with npm, pnpm and yarn via corepack),
-Python 3 with `uv` and pip, git, and a C toolchain. For anything else, add
-Debian packages at build time:
+Python 3 with `uv` and pip, git, a C toolchain, and `nano` and `vim` for quick
+edits in the terminal. For anything else, add Debian packages at build time:
 
 ```sh
 # .env
