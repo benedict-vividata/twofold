@@ -1,4 +1,4 @@
-import { chown, mkdir, rm, stat } from "node:fs/promises";
+import { chmod, chown, mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import type { CheckResult, Session } from "../shared/model.js";
 import type { Config } from "./config.js";
@@ -52,10 +52,13 @@ export class Workspaces {
 
   /** A directory the sandbox user owns. */
   private async makeDir(dir: string): Promise<void> {
-    // Not world-readable: the candidate's terminal user must not see inside.
-    await mkdir(dir, { recursive: true, mode: 0o2770 });
+    await mkdir(dir, { recursive: true });
     const sandbox = this.config.sandbox;
     if (sandbox !== null) await chown(dir, sandbox.uid, sandbox.gid);
+    // Not world-readable: the candidate's terminal user must not see inside.
+    // Set with chmod, not mkdir: Linux ignores the setgid bit passed to mkdir,
+    // and it's what makes files created here belong to the sandbox's group.
+    await chmod(dir, 0o2770);
   }
 
   /** Clones the session's source and returns the base commit. */

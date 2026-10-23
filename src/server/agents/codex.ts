@@ -204,7 +204,8 @@ export class CodexHarness implements Harness {
       await mkdir(turn.scratchDir, { recursive: true });
       schemaFile = path.join(turn.scratchDir, `schema-${randomBytes(6).toString("hex")}.json`);
       await writeFile(schemaFile, JSON.stringify(turn.outputSchema));
-      await chmod(schemaFile, 0o644);
+      await chmod(schemaFile, 0o600);
+      await this.runner.handOver(schemaFile);
       common.push("--output-schema", schemaFile);
     }
 

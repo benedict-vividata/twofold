@@ -168,7 +168,9 @@ export class ClaudeHarness implements Harness {
       turn.scratchDir,
       `instructions-${randomBytes(8).toString("hex")}.md`,
     );
-    await writeFile(instructionsFile, turn.instructions, { mode: 0o640 });
+    await writeFile(instructionsFile, turn.instructions, { mode: 0o600 });
+    // Written by the server; the agent runs as another user and must own it to read it.
+    await this.runner.handOver(instructionsFile);
     try {
       return await this.runWithInstructions(turn, instructionsFile);
     } finally {

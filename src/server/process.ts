@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { chown } from "node:fs/promises";
 import type { SandboxIdentity } from "./config.js";
 
 export interface RunOptions {
@@ -79,6 +80,14 @@ export class Runner {
 
   get sandboxed(): boolean {
     return this.sandbox !== null;
+  }
+
+  /**
+   * Gives a file the server wrote to the sandbox user, so a process running as
+   * that user can read it. (A no-op without a sandbox: everything is one user.)
+   */
+  async handOver(file: string): Promise<void> {
+    if (this.sandbox !== null) await chown(file, this.sandbox.uid, this.sandbox.gid);
   }
 
   baseEnv(): Record<string, string> {
