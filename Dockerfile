@@ -29,7 +29,9 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 COPY tsconfig.base.json tsconfig.json vite.config.ts ./
 COPY scripts ./scripts
 COPY src ./src
-RUN pnpm build
+# The output moves out of /src, so the runtime stage copies from a small, clean
+# directory and BuildKit never has to walk node_modules to checksum it.
+RUN pnpm build && mkdir -p /out && cp -R dist /out/dist
 
 # --------------------------------------------------------------------------- #
 # Runtime.
@@ -42,8 +44,6 @@ ARG CODEX_VERSION=latest
 # Extra Debian packages for the repositories you interview on, e.g.
 #   EXTRA_APT_PACKAGES="golang-go default-jdk-headless cargo"
 ARG EXTRA_APT_PACKAGES=""
-# Keep in step with package.json.
-ARG NODE_PTY_VERSION=1.1.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8
@@ -59,9 +59,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /uvx /usr/local/bin/
 
-RUN npm install -g \
+# Recent npm skips install scripts unless they're allowed, and Claude Code's
+# sets up its native binary. Both CLIs are run once so a broken install fails
+# the build rather than the first interview.
+RUN npm install -g --no-update-notifier \
+        --allow-scripts=@anthropic-ai/claude-code \
         "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
         "@openai/codex@${CODEX_VERSION}" \
+    && claude --version \
+    && codex --version \
     && npm cache clean --force \
     && corepack enable
 
@@ -76,10 +82,14 @@ RUN groupadd --gid 10001 agent \
     && git config --system advice.detachedHead false
 
 WORKDIR /opt/twofold
-# The one runtime dependency the server bundle doesn't inline: the terminal's PTY.
-RUN npm install --no-save --no-package-lock "node-pty@${NODE_PTY_VERSION}" \
+# The one runtime dependency the server bundle doesn't inline: the terminal's
+# PTY. Declared here rather than at the top, so bumping it doesn't reinstall
+# the CLIs. Keep in step with package.json.
+ARG NODE_PTY_VERSION=1.1.0
+RUN npm install --no-save --no-package-lock --no-update-notifier "node-pty@${NODE_PTY_VERSION}" \
+    && node -e "require('node-pty')" \
     && npm cache clean --force
-COPY --from=build /src/dist ./dist
+COPY --from=build /out/dist ./dist
 COPY samples ./samples
 COPY --chmod=0755 docker/twofold.sh /usr/local/bin/twofold
 
