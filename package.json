@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "A technical-interview environment where every AI-written change arrives as two versions and the candidate has to pick, and defend, one.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.8.0",
   "engines": {

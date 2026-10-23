@@ -202,3 +202,7 @@ docker compose down
 Early. It runs end to end with **Claude Code**, including real rounds against
 the sample. **Codex** support is written against Codex's documented output but
 hasn't been run against the live CLI yet.
+
+## License
+
+[MIT](LICENSE)
