@@ -11,7 +11,7 @@ import type {
   Variant,
 } from "../../shared/model.js";
 import type { AgentResult, Harness, JsonSchema } from "../agents/types.js";
-import { AgentError } from "../agents/types.js";
+import { AgentError, describeFailure } from "../agents/types.js";
 import type { Config } from "../config.js";
 import { logger } from "../logger.js";
 import type { SessionStore } from "../store.js";
@@ -257,7 +257,7 @@ export class RoundEngine {
     } catch (error) {
       const cancelled =
         controller.signal.aborted || (error instanceof AgentError && error.cancelled);
-      if (!cancelled) logger.warn(`round ${roundId} failed: ${String(error)}`);
+      if (!cancelled) logger.warn(`round ${roundId} failed: ${describeFailure(error)}`);
       this.updateRound(ctx, (draft) => {
         draft.status = cancelled ? "cancelled" : "failed";
         draft.phase = cancelled ? "Cancelled" : "Failed";

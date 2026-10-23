@@ -45,6 +45,16 @@ export class AgentError extends Error {
   }
 }
 
+/** An error for the server log, with the CLI's own output when there is some. */
+export function describeFailure(error: unknown): string {
+  if (error instanceof AgentError && error.detail.trim() !== "") {
+    const detail = error.detail.trim();
+    const tail = detail.length > 2000 ? `…${detail.slice(-2000)}` : detail;
+    return `${error.message}\n${tail.replace(/^/gm, "    ")}`;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
 export interface Harness {
   readonly kind: HarnessKind;
   readonly label: string;

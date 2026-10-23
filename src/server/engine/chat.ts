@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { Message, Session } from "../../shared/model.js";
-import { AgentError, type Harness } from "../agents/types.js";
+import { AgentError, describeFailure, type Harness } from "../agents/types.js";
 import type { Config } from "../config.js";
 import { logger } from "../logger.js";
 import type { SessionStore } from "../store.js";
@@ -143,7 +143,7 @@ export class ChatEngine {
     } catch (error) {
       const cancelled =
         controller.signal.aborted || (error instanceof AgentError && error.cancelled);
-      if (!cancelled) logger.warn(`chat turn failed in ${sessionId}: ${String(error)}`);
+      if (!cancelled) logger.warn(`chat turn failed in ${sessionId}: ${describeFailure(error)}`);
       this.store.update(sessionId, (draft) => {
         draft.chat.busy = false;
         // A failed resume usually means the agent lost the thread; start a new
